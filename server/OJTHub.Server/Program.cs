@@ -23,20 +23,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Configure Database (PostgreSQL with SQLite local dev fallback)
-var dbProvider = builder.Configuration["DatabaseProvider"] ?? "Sqlite";
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ojthub.db";
+// Configure Database (PostgreSQL + EF Core per proposal specification)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+                       ?? "Host=localhost;Port=5434;Database=ojthub;Username=postgres;Password=postgres";
 
 builder.Services.AddDbContext<OJTHubDbContext>(options =>
 {
-    if (string.Equals(dbProvider, "PostgreSQL", StringComparison.OrdinalIgnoreCase) || connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseNpgsql(connectionString);
-    }
-    else
-    {
-        options.UseSqlite(connectionString);
-    }
+    options.UseNpgsql(connectionString);
 });
 
 // Configure JWT Authentication

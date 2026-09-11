@@ -12,14 +12,23 @@ import {
   TrendingUp, 
   CalendarDays, 
   Award,
-  Coffee
+  Coffee,
+  CheckCircle2,
+  Sliders,
+  Crosshair
 } from 'lucide-react';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onNavigateToSettings?: () => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) => {
   const geo = useGeolocation();
   const [status, setStatus] = useState<AttendanceStatus | null>(null);
   const [hours, setHours] = useState<HoursSummary | null>(null);
   const [loadingAction, setLoadingAction] = useState<boolean>(false);
+  const [calibrating, setCalibrating] = useState<boolean>(false);
+  const [calibrationSuccess, setCalibrationSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
@@ -74,6 +83,34 @@ export const Dashboard: React.FC = () => {
     const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleCalibrateWorkplace = async () => {
+    if (geo.latitude === null || geo.longitude === null) {
+      setActionError('GPS coordinates not acquired yet. Please verify device location permissions.');
+      return;
+    }
+
+    setCalibrating(true);
+    setActionError(null);
+    try {
+      const updated = await api.settings.update({
+        workplaceLatitude: geo.latitude,
+        workplaceLongitude: geo.longitude
+      });
+      setStatus(prev => ({
+        hasActiveShift: prev?.hasActiveShift ?? false,
+        todayRecord: prev?.todayRecord,
+        settings: updated
+      }));
+      setCalibrationSuccess(`Workplace location calibrated to your coordinates (${geo.latitude.toFixed(5)}, ${geo.longitude.toFixed(5)})!`);
+      setTimeout(() => setCalibrationSuccess(null), 5000);
+      await loadData();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to calibrate workplace location');
+    } finally {
+      setCalibrating(false);
+    }
   };
 
   const handleTimeIn = async () => {
@@ -174,6 +211,50 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Workplace Location Quick Calibration Bar */}
+        <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="text-slate-300 flex items-center gap-2">
+            <Crosshair className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>
+              Workplace Center: <strong className="text-white">{workplaceLat.toFixed(5)}, {workplaceLng.toFixed(5)}</strong>
+              {geo.latitude !== null && (
+                <span className="text-slate-400 ml-1.5 hidden md:inline">
+                  (Device: {geo.latitude.toFixed(5)}, {geo.longitude?.toFixed(5)})
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCalibrateWorkplace}
+              disabled={calibrating || geo.loading || geo.latitude === null}
+              className="px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/35 border border-sky-500/40 text-sky-300 font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <MapPin className={`w-3.5 h-3.5 ${calibrating ? 'animate-spin' : ''}`} />
+              {calibrating ? 'Calibrating...' : '📍 Set Current Location as Workplace'}
+            </button>
+
+            {onNavigateToSettings && (
+              <button
+                onClick={onNavigateToSettings}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors flex items-center gap-1.5"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                Settings
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Calibration Success Banner */}
+        {calibrationSuccess && (
+          <div className="mt-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-300 animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+            <div>{calibrationSuccess}</div>
+          </div>
+        )}
+
         {/* GPS Warning if accuracy is low */}
         {geo.accuracy !== null && !isGpsAccurate && (
           <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-300">
@@ -231,7 +312,7 @@ export const Dashboard: React.FC = () => {
           <button
             onClick={handleTimeOut}
             disabled={loadingAction || geo.loading}
-            className="w-full sm:w-80 py-4 px-8 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 shadow-xl shadow-amber-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full sm:w-80 py-4 px-8 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 shadow-xl shadow-amber-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
           >
             {loadingAction ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -244,7 +325,7 @@ export const Dashboard: React.FC = () => {
           <button
             onClick={handleTimeIn}
             disabled={loadingAction || geo.loading}
-            className="w-full sm:w-80 py-4 px-8 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full sm:w-80 py-4 px-8 rounded-2xl font-bold text-lg text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
           >
             {loadingAction ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -261,7 +342,7 @@ export const Dashboard: React.FC = () => {
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> UTC Server Timestamp
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Haversine GPS Verified
           </span>
         </div>
       </div>

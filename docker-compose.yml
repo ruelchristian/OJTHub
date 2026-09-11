@@ -1,0 +1,22 @@
+services:
+  ojthub-db:
+    image: postgres:16-alpine
+    container_name: ojthub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ojthub
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - ojthub_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ojthub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  ojthub_postgres_data:

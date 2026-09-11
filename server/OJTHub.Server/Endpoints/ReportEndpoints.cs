@@ -14,12 +14,33 @@ public static class ReportEndpoints
         group.MapPost("/ai-generate", async (GenerateReportRequest req, ClaimsPrincipal principal, OJTHubDbContext db, IGeminiService geminiService, CancellationToken ct) =>
         {
             var userId = GetUserId(principal);
-            if (userId == null) return Results.Unauthorized();
+            List<ActivityLog> activities;
 
-            var activities = await db.ActivityLogs
-                .Where(a => a.UserId == userId.Value && a.Date >= req.StartDate && a.Date <= req.EndDate)
-                .OrderBy(a => a.Date)
-                .ToListAsync(ct);
+            if (userId.HasValue)
+            {
+                activities = await db.ActivityLogs
+                    .Where(a => a.UserId == userId.Value && a.Date >= req.StartDate && a.Date <= req.EndDate)
+                    .OrderBy(a => a.Date)
+                    .ToListAsync(ct);
+            }
+            else if (req.GuestActivities != null && req.GuestActivities.Count > 0)
+            {
+                activities = req.GuestActivities.Select(g => new ActivityLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = Guid.Empty,
+                    Date = g.Date,
+                    TaskTitle = g.TaskTitle,
+                    Details = g.Details,
+                    HoursSpent = g.HoursSpent,
+                    Category = g.Category,
+                    CreatedAt = DateTimeOffset.UtcNow
+                }).ToList();
+            }
+            else
+            {
+                activities = new List<ActivityLog>();
+            }
 
             var draft = await geminiService.GenerateReportAsync(req.ReportType, activities, req.CustomNotes, ct);
 
@@ -32,7 +53,7 @@ public static class ReportEndpoints
                 referencedActivitiesCount = activities.Count
             });
         })
-        .RequireAuthorization()
+        .AllowAnonymous()
         .WithName("GenerateAiReport")
         .WithTags("Reports");
 
