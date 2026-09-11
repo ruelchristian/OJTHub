@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/server/">
+    <Project Path="server/OJTHub.Server/OJTHub.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OJTHub.Tests/OJTHub.Tests.csproj" />
+  </Folder>
+</Solution>
