@@ -28,12 +28,17 @@ function getAuthHeader(): Record<string, string> {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    let errorMsg = 'An error occurred';
+    let errorMsg = res.statusText || 'An error occurred';
     try {
-      const errJson = await res.json();
-      errorMsg = errJson.message || errJson.title || JSON.stringify(errJson);
+      const text = await res.text();
+      try {
+        const errJson = JSON.parse(text);
+        errorMsg = errJson.message || errJson.title || text;
+      } catch {
+        if (text) errorMsg = text;
+      }
     } catch {
-      errorMsg = await res.text() || res.statusText;
+      // ignore
     }
     throw new Error(errorMsg);
   }

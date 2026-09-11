@@ -15,8 +15,10 @@ import {
   Coffee,
   CheckCircle2,
   Sliders,
-  Crosshair
+  Crosshair,
+  Map as MapIcon
 } from 'lucide-react';
+import { WorkplaceMapPicker } from './WorkplaceMapPicker';
 
 interface DashboardProps {
   onNavigateToSettings?: () => void;
@@ -31,6 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
   const [calibrationSuccess, setCalibrationSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [showRadarMap, setShowRadarMap] = useState<boolean>(false);
 
   const loadData = async () => {
     try {
@@ -227,12 +230,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowRadarMap(!showRadarMap)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                showRadarMap
+                  ? 'bg-sky-600 text-white border-sky-500'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+              }`}
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              {showRadarMap ? 'Hide Radar Map' : '🗺️ Radar Map'}
+            </button>
+
+            <button
               onClick={handleCalibrateWorkplace}
               disabled={calibrating || geo.loading || geo.latitude === null}
               className="px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/35 border border-sky-500/40 text-sky-300 font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
               <MapPin className={`w-3.5 h-3.5 ${calibrating ? 'animate-spin' : ''}`} />
-              {calibrating ? 'Calibrating...' : '📍 Set Current Location as Workplace'}
+              {calibrating ? 'Calibrating...' : '📍 Set Location as Workplace'}
             </button>
 
             {onNavigateToSettings && (
@@ -246,6 +261,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
             )}
           </div>
         </div>
+
+        {/* Live Radar Map Display */}
+        {showRadarMap && (
+          <div className="mt-4 pt-3 border-t border-slate-800/80 animate-fade-in">
+            <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+              <span className="font-semibold text-slate-200">Workplace Geofence & Device Radar</span>
+              <span>Radius: <strong className="text-sky-400">{allowedRadius}m</strong></span>
+            </div>
+            <WorkplaceMapPicker
+              latitude={workplaceLat}
+              longitude={workplaceLng}
+              radiusMeters={allowedRadius}
+              deviceLatitude={geo.latitude}
+              deviceLongitude={geo.longitude}
+              onChange={(newLat, newLng) => {
+                api.settings.update({ workplaceLatitude: newLat, workplaceLongitude: newLng }).then(updated => {
+                  setStatus(prev => prev ? { ...prev, settings: updated } : null);
+                });
+              }}
+              onUseCurrentLocation={handleCalibrateWorkplace}
+              height="260px"
+              readOnly={false}
+            />
+          </div>
+        )}
 
         {/* Calibration Success Banner */}
         {calibrationSuccess && (
