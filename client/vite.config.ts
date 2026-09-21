@@ -10,12 +10,15 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      devOptions: {
+        enabled: true
+      },
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'OJTHub - Geofenced OJT Attendance & Management',
+        name: 'OJTHub - Geofenced Attendance',
         short_name: 'OJTHub',
-        description: 'Geofenced OJT Attendance, AI-Assisted Reporting, and Customizable OJT Management Progressive Web Application',
-        theme_color: '#0284c7',
+        description: 'Geofenced OJT Attendance, AI-Assisted Reporting, and Training Management',
+        theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait',
@@ -23,12 +26,14 @@ export default defineConfig({
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
