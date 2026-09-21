@@ -161,6 +161,7 @@ public static class AttendanceEndpoints
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var record = await db.AttendanceRecords
                 .Include(a => a.User)
+                .Include(a => a.PerimeterLogs)
                 .Where(a => a.UserId == userId.Value)
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.TimeIn)
@@ -193,6 +194,7 @@ public static class AttendanceEndpoints
 
             var query = db.AttendanceRecords
                 .Include(a => a.User)
+                .Include(a => a.PerimeterLogs)
                 .Where(a => a.UserId == userId.Value);
 
             if (year.HasValue)
@@ -246,6 +248,67 @@ public static class AttendanceEndpoints
         .WithName("GetHoursSummary")
         .WithTags("Attendance");
 
+        group.MapPost("/perimeter-event", async (LogPerimeterEventRequest req, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var userId = GetUserId(principal);
+            if (userId == null) return Results.Unauthorized();
+
+            // Find the active shift or specific shift
+            var record = req.AttendanceRecordId.HasValue
+                ? await db.AttendanceRecords.Include(a => a.PerimeterLogs).FirstOrDefaultAsync(a => a.Id == req.AttendanceRecordId.Value && a.UserId == userId.Value)
+                : await db.AttendanceRecords.Include(a => a.PerimeterLogs).FirstOrDefaultAsync(a => a.UserId == userId.Value && a.TimeOut == null);
+
+            if (record == null)
+            {
+                return Results.BadRequest(new { message = "No active shift found to attach perimeter event." });
+            }
+
+            var eventTime = req.ClientTimestamp ?? DateTimeOffset.UtcNow;
+            var recentSameEvent = record.PerimeterLogs
+                .OrderByDescending(p => p.Timestamp)
+                .FirstOrDefault();
+
+            if (recentSameEvent != null && 
+                recentSameEvent.EventType == req.EventType && 
+                Math.Abs((eventTime - recentSameEvent.Timestamp).TotalSeconds) < 60)
+            {
+                return Results.Ok(new { message = "Perimeter event already recorded recently.", ignored = true });
+            }
+
+            var log = new PerimeterLog
+            {
+                Id = Guid.NewGuid(),
+                AttendanceRecordId = record.Id,
+                UserId = userId.Value,
+                Timestamp = eventTime,
+                EventType = req.EventType,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
+                DistanceMeters = req.DistanceMeters,
+                GpsAccuracy = req.GpsAccuracy,
+                Note = req.Note ?? (req.EventType == "Departed" ? "Stepped outside geofence perimeter" : "Re-entered geofence perimeter")
+            };
+
+            db.PerimeterLogs.Add(log);
+
+            if (req.EventType == "Departed")
+            {
+                record.PerimeterBreachCount++;
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new
+            {
+                message = $"Perimeter {req.EventType.ToLowerInvariant()} event logged successfully.",
+                logId = log.Id,
+                breachCount = record.PerimeterBreachCount
+            });
+        })
+        .RequireAuthorization()
+        .WithName("LogPerimeterEvent")
+        .WithTags("Attendance");
+
         return group;
     }
 
@@ -271,7 +334,20 @@ public static class AttendanceEndpoints
             r.NetRenderedHours,
             r.IsVerified,
             r.VerifiedAt,
-            r.SupervisorRemark
+            r.SupervisorRemark,
+            r.PerimeterBreachCount,
+            r.PerimeterLogs?.OrderBy(p => p.Timestamp).Select(p => new PerimeterLogDto(
+                p.Id,
+                p.AttendanceRecordId,
+                p.UserId,
+                p.Timestamp,
+                p.EventType,
+                p.Latitude,
+                p.Longitude,
+                p.DistanceMeters,
+                p.GpsAccuracy,
+                p.Note
+            )).ToList()
         );
 
     private static Guid? GetUserId(ClaimsPrincipal principal)

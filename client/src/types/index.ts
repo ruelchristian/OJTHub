@@ -53,6 +53,21 @@ export interface AttendanceRecord {
   isVerified: boolean;
   verifiedAt?: string;
   supervisorRemark?: string;
+  perimeterBreachCount?: number;
+  perimeterLogs?: PerimeterLog[];
+}
+
+export interface PerimeterLog {
+  id: string;
+  attendanceRecordId: string;
+  userId: string;
+  timestamp: string;
+  eventType: 'Departed' | 'Returned';
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  gpsAccuracy: number;
+  note?: string;
 }
 
 export interface AttendanceStatus {

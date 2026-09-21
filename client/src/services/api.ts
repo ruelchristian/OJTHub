@@ -273,6 +273,34 @@ export const api = {
         console.warn('Backend summary fetch failed, using local calculation', err);
         return guestStore.getHoursSummary();
       }
+    },
+
+    async logPerimeterEvent(data: {
+      attendanceRecordId?: string;
+      eventType: 'Departed' | 'Returned';
+      latitude: number;
+      longitude: number;
+      distanceMeters: number;
+      gpsAccuracy: number;
+      note?: string;
+    }): Promise<{ message: string; logId?: string; breachCount?: number }> {
+      if (isGuestUser()) {
+        return { message: 'Perimeter event noted locally', breachCount: 1 };
+      }
+      try {
+        const res = await fetch(`${API_BASE}/attendance/perimeter-event`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify(data)
+        });
+        return await handleResponse<{ message: string; logId?: string; breachCount?: number }>(res);
+      } catch (err) {
+        console.warn('Failed to log perimeter event to server', err);
+        return { message: 'Perimeter event cached offline', breachCount: 1 };
+      }
     }
   },
 

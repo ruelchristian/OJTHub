@@ -15,6 +15,30 @@ public record TimeOutRequest(
     DateTimeOffset? ClientTimestamp = null
 );
 
+public record PerimeterLogDto(
+    Guid Id,
+    Guid AttendanceRecordId,
+    Guid UserId,
+    DateTimeOffset Timestamp,
+    string EventType,
+    decimal Latitude,
+    decimal Longitude,
+    decimal DistanceMeters,
+    decimal GpsAccuracy,
+    string? Note
+);
+
+public record LogPerimeterEventRequest(
+    Guid? AttendanceRecordId,
+    string EventType,
+    decimal Latitude,
+    decimal Longitude,
+    decimal DistanceMeters,
+    decimal GpsAccuracy,
+    string? Note = null,
+    DateTimeOffset? ClientTimestamp = null
+);
+
 public record AttendanceRecordDto(
     Guid Id,
     Guid UserId,
@@ -36,7 +60,9 @@ public record AttendanceRecordDto(
     decimal? NetRenderedHours,
     bool IsVerified,
     DateTimeOffset? VerifiedAt,
-    string? SupervisorRemark
+    string? SupervisorRemark,
+    int PerimeterBreachCount = 0,
+    List<PerimeterLogDto>? PerimeterLogs = null
 );
 
 public record AttendanceStatusResponse(

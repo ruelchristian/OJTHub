@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { calculateDistanceMeters } from '../utils/geo';
 import { api } from '../services/api';
@@ -122,6 +122,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
 
   const isWithinGeofence = currentDistance !== null && currentDistance <= allowedRadius;
   const isGpsAccurate = geo.accuracy !== null && geo.accuracy <= accuracyLimit;
+
+  // Active shift perimeter status & incident logger
+  const [perimeterStatus, setPerimeterStatus] = useState<'Inside' | 'Outside' | null>(null);
+  const lastPerimeterStateRef = useRef<'Inside' | 'Outside' | null>(null);
+
+  useEffect(() => {
+    if (!status?.hasActiveShift || !status.todayRecord?.id || currentDistance === null || !isGpsAccurate) {
+      return;
+    }
+
+    const isInside = currentDistance <= allowedRadius;
+    const currentState = isInside ? 'Inside' : 'Outside';
+
+    if (lastPerimeterStateRef.current === null) {
+      lastPerimeterStateRef.current = currentState;
+      setPerimeterStatus(currentState);
+      return;
+    }
+
+    if (lastPerimeterStateRef.current !== currentState) {
+      const eventType = currentState === 'Outside' ? 'Departed' : 'Returned';
+      lastPerimeterStateRef.current = currentState;
+      setPerimeterStatus(currentState);
+
+      api.attendance.logPerimeterEvent({
+        attendanceRecordId: status.todayRecord.id,
+        eventType,
+        latitude: geo.latitude!,
+        longitude: geo.longitude!,
+        distanceMeters: Math.round(currentDistance),
+        gpsAccuracy: geo.accuracy || 15,
+        note: eventType === 'Departed'
+          ? `Stepped outside geofence perimeter (${Math.round(currentDistance)}m from workplace)`
+          : `Re-entered workplace perimeter (${Math.round(currentDistance)}m from workplace)`
+      }).then(() => {
+        if (eventType === 'Departed') {
+          setStatus(prev => {
+            if (!prev?.todayRecord) return prev;
+            return {
+              ...prev,
+              todayRecord: {
+                ...prev.todayRecord,
+                perimeterBreachCount: (prev.todayRecord.perimeterBreachCount || 0) + 1
+              }
+            };
+          });
+        }
+      }).catch(err => console.warn('Could not log perimeter event:', err));
+    }
+  }, [status?.hasActiveShift, status?.todayRecord?.id, currentDistance, allowedRadius, isGpsAccurate]);
 
   const formatElapsed = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -478,6 +528,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
               <strong className="text-amber-100">Daily Target Reached ({scheduledHours} hrs):</strong> You have completed your scheduled daily hours for today. Remember to punch <strong>TIME OUT</strong> before leaving!
             </div>
           </div>
+        )}
+
+        {/* Active Shift Perimeter Live Status */}
+        {status?.hasActiveShift && (
+          <>
+            {perimeterStatus === 'Outside' ? (
+              <div className="w-full max-w-md mb-4 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 text-xs text-rose-200 flex items-start gap-2.5 text-left animate-fade-in">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <div className="font-bold text-rose-100 flex items-center justify-between">
+                    <span>Outside Workplace Perimeter ({Math.round(currentDistance ?? 0)}m away)</span>
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">
+                      Logged
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-rose-200/80 leading-relaxed">
+                    Your shift timer is still counting, but this departure is recorded for supervisor review. Return to your workplace when your break or errand is complete.
+                  </p>
+                </div>
+              </div>
+            ) : status.todayRecord?.perimeterBreachCount && status.todayRecord.perimeterBreachCount > 0 ? (
+              <div className="w-full max-w-md mb-4 bg-slate-800/80 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-300 flex items-center justify-between gap-2 text-left animate-fade-in">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-medium text-[11px] truncate">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Currently Inside Workplace Perimeter</span>
+                </span>
+                <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 shrink-0">
+                  {status.todayRecord.perimeterBreachCount} Departure{status.todayRecord.perimeterBreachCount > 1 ? 's' : ''} Logged
+                </span>
+              </div>
+            ) : null}
+          </>
         )}
 
         <p className="text-xs text-slate-400 mb-6 sm:mb-8 px-2 max-w-sm sm:max-w-md">

@@ -12,6 +12,7 @@ public class OJTHubDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<OjtSetting> OjtSettings => Set<OjtSetting>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<PerimeterLog> PerimeterLogs => Set<PerimeterLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<GeneratedReport> GeneratedReports => Set<GeneratedReport>();
 
@@ -69,6 +70,18 @@ public class OJTHubDbContext : DbContext
             entity.HasOne(r => r.User)
                 .WithMany(u => u.GeneratedReports)
                 .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PerimeterLog
+        modelBuilder.Entity<PerimeterLog>(entity =>
+        {
+            entity.HasIndex(p => p.AttendanceRecordId);
+            entity.HasIndex(p => p.UserId);
+
+            entity.HasOne(p => p.AttendanceRecord)
+                .WithMany(a => a.PerimeterLogs)
+                .HasForeignKey(p => p.AttendanceRecordId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -221,6 +221,7 @@ public static class SupervisorEndpoints
 
             var query = db.AttendanceRecords
                 .Include(a => a.User)
+                .Include(a => a.PerimeterLogs)
                 .Where(a => a.UserId == traineeId);
 
             if (year.HasValue) query = query.Where(a => a.Date.Year == year.Value);
@@ -235,7 +236,12 @@ public static class SupervisorEndpoints
                 r.Id, r.UserId, trainee.FullName, r.Date, r.TimeIn,
                 r.TimeInLatitude, r.TimeInLongitude, r.TimeInDistance, r.TimeInGpsAccuracy, r.TimeInWithinGeofence,
                 r.TimeOut, r.TimeOutLatitude, r.TimeOutLongitude, r.TimeOutDistance, r.TimeOutGpsAccuracy, r.TimeOutWithinGeofence,
-                r.LunchBreakMinutes, r.NetRenderedHours, r.IsVerified, r.VerifiedAt, r.SupervisorRemark
+                r.LunchBreakMinutes, r.NetRenderedHours, r.IsVerified, r.VerifiedAt, r.SupervisorRemark,
+                r.PerimeterBreachCount,
+                r.PerimeterLogs?.OrderBy(p => p.Timestamp).Select(p => new PerimeterLogDto(
+                    p.Id, p.AttendanceRecordId, p.UserId, p.Timestamp, p.EventType,
+                    p.Latitude, p.Longitude, p.DistanceMeters, p.GpsAccuracy, p.Note
+                )).ToList()
             )).ToList();
 
             return Results.Ok(dtos);

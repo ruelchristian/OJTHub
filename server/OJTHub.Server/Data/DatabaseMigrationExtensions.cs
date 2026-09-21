@@ -96,6 +96,24 @@ public static class DatabaseMigrationExtensions
                 await db.Database.ExecuteSqlRawAsync(@"
                     ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""SupervisorCode"" character varying(20);
                     CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_SupervisorCode"" ON ""Users"" (""SupervisorCode"");
+                    ALTER TABLE ""AttendanceRecords"" ADD COLUMN IF NOT EXISTS ""PerimeterBreachCount"" integer NOT NULL DEFAULT 0;
+
+                    CREATE TABLE IF NOT EXISTS ""PerimeterLogs"" (
+                        ""Id"" uuid NOT NULL,
+                        ""AttendanceRecordId"" uuid NOT NULL,
+                        ""UserId"" uuid NOT NULL,
+                        ""Timestamp"" timestamp with time zone NOT NULL,
+                        ""EventType"" character varying(50) NOT NULL,
+                        ""Latitude"" numeric(9,6) NOT NULL,
+                        ""Longitude"" numeric(9,6) NOT NULL,
+                        ""DistanceMeters"" numeric(6,1) NOT NULL,
+                        ""GpsAccuracy"" numeric(5,1) NOT NULL,
+                        ""Note"" character varying(255) NULL,
+                        CONSTRAINT ""PK_PerimeterLogs"" PRIMARY KEY (""Id""),
+                        CONSTRAINT ""FK_PerimeterLogs_AttendanceRecords_AttendanceRecordId"" FOREIGN KEY (""AttendanceRecordId"") REFERENCES ""AttendanceRecords"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_PerimeterLogs_AttendanceRecordId"" ON ""PerimeterLogs"" (""AttendanceRecordId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_PerimeterLogs_UserId"" ON ""PerimeterLogs"" (""UserId"");
                 ");
 
                 logger.LogInformation("Successfully bridged legacy EnsureCreated schema to EF Core migration history.");
