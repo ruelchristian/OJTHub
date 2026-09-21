@@ -31,7 +31,12 @@ export const guestStore = {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.gpsAccuracyThreshold === 50 || !parsed.gpsAccuracyThreshold)) {
+          parsed.gpsAccuracyThreshold = 150;
+          try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed)); } catch (_) {}
+        }
+        return { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (e) {
       console.error('Error reading guest settings', e);
