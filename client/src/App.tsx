@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -10,17 +11,22 @@ import { SettingsView } from './components/SettingsView';
 import { SupervisorPortal } from './components/SupervisorPortal';
 import { AuthModal } from './components/AuthModal';
 
+const SupervisorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isGuest } = useAuth();
+  if (!isGuest && user && user.role !== 'Supervisor') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+};
+
 const MainLayout: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user && !isGuest) {
       setAuthModalOpen(true);
-    }
-    if (user?.role === 'Supervisor') {
-      setCurrentTab('supervisor');
     }
   }, [user, loading, isGuest]);
 
@@ -33,22 +39,31 @@ const MainLayout: React.FC = () => {
     );
   }
 
+  const defaultRedirect = user?.role === 'Supervisor' ? '/supervisor' : '/dashboard';
+
   return (
     <div className="min-h-screen min-h-[100dvh] bg-[#0b0f19] text-slate-100 flex flex-col w-full overflow-x-hidden">
-      <Navbar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        onOpenAuth={() => setAuthModalOpen(true)}
-      />
+      <Navbar onOpenAuth={() => setAuthModalOpen(true)} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 md:pb-10">
-        {currentTab === 'dashboard' && <Dashboard onNavigateToSettings={() => setCurrentTab('settings')} />}
-        {currentTab === 'history' && <AttendanceHistory />}
-        {currentTab === 'activities' && <ActivityLogger />}
-        {currentTab === 'reports' && <AiReporting />}
-        {currentTab === 'documents' && <DtrGenerator />}
-        {currentTab === 'settings' && <SettingsView />}
-        {currentTab === 'supervisor' && <SupervisorPortal />}
+        <Routes>
+          <Route path="/" element={<Navigate to={defaultRedirect} replace />} />
+          <Route path="/dashboard" element={<Dashboard onNavigateToSettings={() => navigate('/settings')} />} />
+          <Route path="/history" element={<AttendanceHistory />} />
+          <Route path="/activities" element={<ActivityLogger />} />
+          <Route path="/reports" element={<AiReporting />} />
+          <Route path="/documents" element={<DtrGenerator />} />
+          <Route path="/settings" element={<SettingsView />} />
+          <Route
+            path="/supervisor"
+            element={
+              <SupervisorRoute>
+                <SupervisorPortal />
+              </SupervisorRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       <footer className="border-t border-slate-800/80 bg-slate-950/60 py-5 text-center text-xs text-slate-400 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-6">
@@ -67,9 +82,11 @@ const MainLayout: React.FC = () => {
 
 export function App() {
   return (
-    <AuthProvider>
-      <MainLayout />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <MainLayout />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

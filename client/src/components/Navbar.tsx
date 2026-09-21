@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Clock, 
@@ -8,41 +9,66 @@ import {
   FileText, 
   Settings, 
   Users, 
-  LogOut,
-  LogIn,
-  User,
-  X,
-  ShieldCheck,
-  MapPin
+  LogOut, 
+  LogIn, 
+  User, 
+  X, 
+  ShieldCheck, 
+  MapPin 
 } from 'lucide-react';
 
 interface NavbarProps {
-  currentTab: string;
-  setCurrentTab: (tab: string) => void;
+  currentTab?: string;
+  setCurrentTab?: (tab: string) => void;
   onOpenAuth: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpenAuth }) => {
   const { user, isGuest, logout } = useAuth();
   const [accountDrawerOpen, setAccountDrawerOpen] = useState<boolean>(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isSupervisor = user?.role === 'Supervisor';
 
   const traineeTabs = [
-    { id: 'dashboard', label: 'Punch Clock', mobileLabel: 'Clock', icon: Clock },
-    { id: 'history', label: 'Attendance', mobileLabel: 'History', icon: Calendar },
-    { id: 'activities', label: 'Tasks', mobileLabel: 'Tasks', icon: CheckSquare },
-    { id: 'reports', label: 'AI Reports', mobileLabel: 'AI', icon: Sparkles },
-    { id: 'documents', label: 'PDF DTR', mobileLabel: 'DTR', icon: FileText },
-    { id: 'settings', label: 'Settings', mobileLabel: 'Settings', icon: Settings },
+    { id: 'dashboard', path: '/dashboard', label: 'Punch Clock', mobileLabel: 'Clock', icon: Clock },
+    { id: 'history', path: '/history', label: 'Attendance', mobileLabel: 'History', icon: Calendar },
+    { id: 'activities', path: '/activities', label: 'Tasks', mobileLabel: 'Tasks', icon: CheckSquare },
+    { id: 'reports', path: '/reports', label: 'AI Reports', mobileLabel: 'AI', icon: Sparkles },
+    { id: 'documents', path: '/documents', label: 'PDF DTR', mobileLabel: 'DTR', icon: FileText },
+    { id: 'settings', path: '/settings', label: 'Settings', mobileLabel: 'Settings', icon: Settings },
   ];
 
   const supervisorTabs = [
-    { id: 'supervisor', label: 'Trainees Roster', mobileLabel: 'Roster', icon: Users },
-    { id: 'settings', label: 'Settings', mobileLabel: 'Settings', icon: Settings },
+    { id: 'supervisor', path: '/supervisor', label: 'Trainees Roster', mobileLabel: 'Roster', icon: Users },
+    { id: 'settings', path: '/settings', label: 'Settings', mobileLabel: 'Settings', icon: Settings },
   ];
 
   const tabs = isSupervisor ? supervisorTabs : traineeTabs;
+
+  const isTabActive = (tab: { id: string; path: string }) => {
+    if (location.pathname === tab.path) return true;
+    if (tab.path === '/dashboard' && location.pathname === '/') return true;
+    if (currentTab && currentTab === tab.id) return true;
+    return false;
+  };
+
+  const handleTabClick = (tab: { id: string; path: string }) => {
+    navigate(tab.path);
+    setCurrentTab?.(tab.id);
+  };
+
+  const handleLogoClick = () => {
+    const firstTab = tabs[0];
+    navigate(firstTab.path);
+    setCurrentTab?.(firstTab.id);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/dashboard');
+  };
 
   return (
     <>
@@ -53,10 +79,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
           {/* Logo & Brand */}
           <div 
             className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none shrink-0" 
-            onClick={() => setCurrentTab(tabs[0].id)}
+            onClick={handleLogoClick}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter') setCurrentTab(tabs[0].id); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogoClick(); }}
           >
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-500 flex items-center justify-center shadow-md shadow-sky-500/20 shrink-0">
               <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
@@ -75,13 +101,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
           <nav className="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
             {tabs.map((tab) => {
               const Icon = tab.icon;
-              const isActive = currentTab === tab.id;
+              const isActive = isTabActive(tab);
               return (
                 <button
                   key={tab.id}
                   data-tab={tab.id}
                   aria-label={tab.label}
-                  onClick={() => setCurrentTab(tab.id)}
+                  onClick={() => handleTabClick(tab)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-sky-600 text-white shadow-sm font-semibold'
@@ -128,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
                   </div>
                 </button>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   title="Log out"
                   className="min-h-[38px] min-w-[38px] p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                 >
@@ -156,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = currentTab === tab.id && !accountDrawerOpen;
+          const isActive = isTabActive(tab) && !accountDrawerOpen;
           return (
             <button
               key={tab.id}
@@ -164,7 +190,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
               aria-label={tab.label}
               onClick={() => {
                 setAccountDrawerOpen(false);
-                setCurrentTab(tab.id);
+                handleTabClick(tab);
               }}
               className={`flex-1 min-h-[46px] flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 rounded-xl transition-all cursor-pointer relative ${
                 isActive 
@@ -282,7 +308,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
                     type="button"
                     onClick={() => {
                       setAccountDrawerOpen(false);
-                      logout();
+                      handleLogout();
                     }}
                     className="w-full min-h-[44px] py-2.5 px-4 rounded-xl text-xs font-semibold bg-rose-600/15 hover:bg-rose-600/25 border border-rose-500/30 text-rose-300 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
