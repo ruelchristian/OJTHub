@@ -57,11 +57,19 @@ public static class AttendanceEndpoints
 
             var withinGeofence = distance <= setting.GeofenceRadiusMeters;
 
+            var punchTime = DateTimeOffset.UtcNow;
+            if (req.ClientTimestamp.HasValue && 
+                req.ClientTimestamp.Value <= DateTimeOffset.UtcNow.AddMinutes(10) && 
+                req.ClientTimestamp.Value >= DateTimeOffset.UtcNow.AddDays(-7))
+            {
+                punchTime = req.ClientTimestamp.Value;
+            }
+
             var record = new AttendanceRecord
             {
                 UserId = userId.Value,
-                Date = today,
-                TimeIn = DateTimeOffset.UtcNow,
+                Date = DateOnly.FromDateTime(punchTime.UtcDateTime),
+                TimeIn = punchTime,
                 TimeInLatitude = req.Latitude,
                 TimeInLongitude = req.Longitude,
                 TimeInDistance = distance,
@@ -112,6 +120,12 @@ public static class AttendanceEndpoints
             }
 
             var now = DateTimeOffset.UtcNow;
+            if (req.ClientTimestamp.HasValue && 
+                req.ClientTimestamp.Value <= DateTimeOffset.UtcNow.AddMinutes(10) && 
+                req.ClientTimestamp.Value >= record.TimeIn)
+            {
+                now = req.ClientTimestamp.Value;
+            }
             var lunchMinutes = req.CustomLunchMinutes ?? record.LunchBreakMinutes;
             var netHours = attendanceService.CalculateNetHours(record.TimeIn, now, lunchMinutes);
 

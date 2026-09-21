@@ -10,6 +10,7 @@ import type {
   TraineeSummary
 } from '../types';
 import { guestStore } from './guestStore';
+import { offlineQueue } from './offlineQueue';
 
 const API_BASE = '/api';
 
@@ -120,34 +121,110 @@ export const api = {
   },
 
   attendance: {
-    async timeIn(latitude: number, longitude: number, accuracy: number): Promise<AttendanceRecord> {
+    async timeIn(latitude: number, longitude: number, accuracy: number, clientTimestamp?: string): Promise<AttendanceRecord> {
       if (isGuestUser()) {
         return guestStore.timeIn(latitude, longitude, accuracy);
       }
-      const res = await fetch(`${API_BASE}/attendance/time-in`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
-        },
-        body: JSON.stringify({ latitude, longitude, accuracy })
-      });
-      return handleResponse<AttendanceRecord>(res);
+      const punchTime = clientTimestamp || new Date().toISOString();
+      try {
+        const res = await fetch(`${API_BASE}/attendance/time-in`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify({ latitude, longitude, accuracy, clientTimestamp: punchTime })
+        });
+        return await handleResponse<AttendanceRecord>(res);
+      } catch (err: any) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError') || err.message?.includes('network')) {
+          offlineQueue.enqueue({
+            type: 'timeIn',
+            latitude,
+            longitude,
+            accuracy,
+            timestamp: punchTime
+          });
+          return guestStore.timeIn(latitude, longitude, accuracy);
+        }
+        throw err;
+      }
     },
 
-    async timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number): Promise<AttendanceRecord> {
+    async timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number, clientTimestamp?: string): Promise<AttendanceRecord> {
       if (isGuestUser()) {
         return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes);
       }
-      const res = await fetch(`${API_BASE}/attendance/time-out`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
-        },
-        body: JSON.stringify({ latitude, longitude, accuracy, customLunchMinutes })
+      const punchTime = clientTimestamp || new Date().toISOString();
+      try {
+        const res = await fetch(`${API_BASE}/attendance/time-out`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify({ latitude, longitude, accuracy, customLunchMinutes, clientTimestamp: punchTime })
+        });
+        return await handleResponse<AttendanceRecord>(res);
+      } catch (err: any) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError') || err.message?.includes('network')) {
+          offlineQueue.enqueue({
+            type: 'timeOut',
+            latitude,
+            longitude,
+            accuracy,
+            customLunchMinutes,
+            timestamp: punchTime
+          });
+          return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes);
+        }
+        throw err;
+      }
+    },
+
+    async syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
+      if (isGuestUser() || !navigator.onLine) {
+        return { synced: 0, remaining: offlineQueue.getPending().length };
+      }
+      return await offlineQueue.flush(async (punch) => {
+        try {
+          if (punch.type === 'timeIn') {
+            const res = await fetch(`${API_BASE}/attendance/time-in`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeader()
+              },
+              body: JSON.stringify({
+                latitude: punch.latitude,
+                longitude: punch.longitude,
+                accuracy: punch.accuracy,
+                clientTimestamp: punch.timestamp
+              })
+            });
+            return res.ok;
+          } else if (punch.type === 'timeOut') {
+            const res = await fetch(`${API_BASE}/attendance/time-out`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeader()
+              },
+              body: JSON.stringify({
+                latitude: punch.latitude,
+                longitude: punch.longitude,
+                accuracy: punch.accuracy,
+                customLunchMinutes: punch.customLunchMinutes,
+                clientTimestamp: punch.timestamp
+              })
+            });
+            return res.ok;
+          }
+          return false;
+        } catch {
+          return false;
+        }
       });
-      return handleResponse<AttendanceRecord>(res);
     },
 
     async getStatus(): Promise<AttendanceStatus> {
@@ -471,3 +548,10 @@ export const api = {
     }
   }
 };
+
+// Automatically sync queued punches when connectivity is restored
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    api.attendance.syncOfflineQueue().catch(e => console.warn('Auto-sync error on reconnect:', e));
+  });
+}

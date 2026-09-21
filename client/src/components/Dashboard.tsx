@@ -16,9 +16,12 @@ import {
   CheckCircle2,
   Sliders,
   Crosshair,
-  Map as MapIcon
+  Map as MapIcon,
+  WifiOff,
+  CloudUpload
 } from 'lucide-react';
 import { WorkplaceMapPicker } from './WorkplaceMapPicker';
+import { offlineQueue } from '../services/offlineQueue';
 
 interface DashboardProps {
   onNavigateToSettings?: () => void;
@@ -34,6 +37,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
   const [actionError, setActionError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [showRadarMap, setShowRadarMap] = useState<boolean>(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => offlineQueue.getPending().length);
+  const [syncingOffline, setSyncingOffline] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   const loadData = async () => {
     try {
@@ -48,8 +54,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
     }
   };
 
+  const handleManualSync = async () => {
+    if (offlineQueue.getPending().length === 0) return;
+    setSyncingOffline(true);
+    try {
+      const res = await api.attendance.syncOfflineQueue();
+      await loadData();
+      if (res.synced > 0) {
+        setCalibrationSuccess(`Synchronized ${res.synced} offline attendance punch${res.synced > 1 ? 'es' : ''}!`);
+        setTimeout(() => setCalibrationSuccess(null), 4000);
+      }
+    } catch (err: any) {
+      console.warn('Manual sync failed:', err);
+    } finally {
+      setSyncingOffline(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+
+    const unsub = offlineQueue.subscribe((count) => {
+      setPendingSyncCount(count);
+    });
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      handleManualSync();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      unsub();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Timer for active shift
@@ -292,6 +334,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
           <div className="mt-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-300 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
             <div>{calibrationSuccess}</div>
+          </div>
+        )}
+
+        {/* Offline State / Queue Banner */}
+        {(!isOnline || pendingSyncCount > 0) && (
+          <div className="mt-3 bg-amber-500/15 border border-amber-500/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 animate-fade-in">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <WifiOff className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+              <div>
+                <p className="font-semibold text-amber-100">
+                  {!isOnline ? 'You are currently offline' : `${pendingSyncCount} attendance punch${pendingSyncCount > 1 ? 'es' : ''} saved offline`}
+                </p>
+                <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
+                  {pendingSyncCount > 0
+                    ? 'Your exact punch timestamp is safely stored and will auto-sync once internet reconnects.'
+                    : 'Attendance punches will be safely stored offline and synced when you reconnect.'}
+                </p>
+              </div>
+            </div>
+            {pendingSyncCount > 0 && (
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={syncingOffline || !isOnline}
+                className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <CloudUpload className={`w-3.5 h-3.5 ${syncingOffline ? 'animate-bounce' : ''}`} />
+                <span>{syncingOffline ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+            )}
           </div>
         )}
 

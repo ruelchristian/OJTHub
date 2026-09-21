@@ -3,14 +3,16 @@ namespace OJTHub.Server.DTOs;
 public record TimeInRequest(
     decimal Latitude,
     decimal Longitude,
-    decimal Accuracy
+    decimal Accuracy,
+    DateTimeOffset? ClientTimestamp = null
 );
 
 public record TimeOutRequest(
     decimal Latitude,
     decimal Longitude,
     decimal Accuracy,
-    int? CustomLunchMinutes
+    int? CustomLunchMinutes = null,
+    DateTimeOffset? ClientTimestamp = null
 );
 
 public record AttendanceRecordDto(
