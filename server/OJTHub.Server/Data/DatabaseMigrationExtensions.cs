@@ -16,7 +16,7 @@ public static class DatabaseMigrationExtensions
             {
                 logger.LogInformation("Attempting database migration verification (attempt {Attempt}/10)...", attempt);
 
-                if (db.Database.IsRelational())
+                if (db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
                 {
                     // Check if database was originally initialized via EnsureCreated() before migrations were adopted
                     await BridgeEnsureCreatedToMigrationsAsync(db, logger);
@@ -37,6 +37,8 @@ public static class DatabaseMigrationExtensions
                 }
                 else
                 {
+                    // Local SQLite or in-memory provider
+                    logger.LogInformation("Non-PostgreSQL provider active ({Provider}): initializing schema...", db.Database.ProviderName);
                     await db.Database.EnsureCreatedAsync();
                 }
 

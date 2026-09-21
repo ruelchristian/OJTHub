@@ -56,7 +56,14 @@ var connectionString = ParseConnectionString(rawConn);
 
 builder.Services.AddDbContext<OJTHubDbContext>(options =>
 {
-    options.UseNpgsql(connectionString);
+    if (connectionString.StartsWith("Data Source=") || connectionString.EndsWith(".db"))
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        options.UseNpgsql(connectionString);
+    }
 });
 
 // Configure JWT Authentication

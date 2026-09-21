@@ -39,3 +39,8 @@ $RECYCLE.BIN/
 .DS_Store
 scratch/
 client/scratch/
+
+## Local SQLite Database
+*.db
+*.db-shm
+*.db-wal
