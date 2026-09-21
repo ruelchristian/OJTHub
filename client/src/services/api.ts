@@ -183,10 +183,10 @@ export const api = {
     },
 
     async syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
-      if (isGuestUser() || !navigator.onLine) {
-        return { synced: 0, remaining: offlineQueue.getPending().length };
+      if (isGuestUser() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return { synced: 0, remaining: offlineQueue.getTotalPendingCount() };
       }
-      return await offlineQueue.flush(async (punch) => {
+      const punchResult = await offlineQueue.flush(async (punch) => {
         try {
           if (punch.type === 'timeIn') {
             const res = await fetch(`${API_BASE}/attendance/time-in`, {
@@ -225,6 +225,12 @@ export const api = {
           return false;
         }
       });
+
+      const periResult = await this.syncOfflinePerimeterEvents();
+      return {
+        synced: punchResult.synced + periResult.synced,
+        remaining: punchResult.remaining + periResult.remaining
+      };
     },
 
     async getStatus(): Promise<AttendanceStatus> {
@@ -275,9 +281,39 @@ export const api = {
       }
     },
 
+    async syncOfflinePerimeterEvents(): Promise<{ synced: number; remaining: number }> {
+      if (isGuestUser() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return { synced: 0, remaining: offlineQueue.getPendingPerimeterEvents().length };
+      }
+      return await offlineQueue.flushPerimeterEvents(async (evt) => {
+        try {
+          const res = await fetch(`${API_BASE}/attendance/perimeter-event`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeader()
+            },
+            body: JSON.stringify({
+              attendanceRecordId: evt.attendanceRecordId,
+              eventType: evt.eventType,
+              latitude: evt.latitude,
+              longitude: evt.longitude,
+              distanceMeters: evt.distanceMeters,
+              gpsAccuracy: evt.gpsAccuracy,
+              note: evt.note,
+              clientTimestamp: evt.timestamp
+            })
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      });
+    },
+
     async logPerimeterEvent(data: {
       attendanceRecordId?: string;
-      eventType: 'Departed' | 'Returned';
+      eventType: 'Departed' | 'Returned' | 'LocationDisabled' | 'LocationRestored';
       latitude: number;
       longitude: number;
       distanceMeters: number;
@@ -287,6 +323,15 @@ export const api = {
       if (isGuestUser()) {
         return { message: 'Perimeter event noted locally', breachCount: 1 };
       }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        offlineQueue.enqueuePerimeterEvent({
+          ...data,
+          timestamp: new Date().toISOString()
+        });
+        return { message: 'Perimeter event queued offline', breachCount: 1 };
+      }
+
       try {
         const res = await fetch(`${API_BASE}/attendance/perimeter-event`, {
           method: 'POST',
@@ -294,12 +339,19 @@ export const api = {
             'Content-Type': 'application/json',
             ...getAuthHeader()
           },
-          body: JSON.stringify(data)
+          body: JSON.stringify({
+            ...data,
+            clientTimestamp: new Date().toISOString()
+          })
         });
         return await handleResponse<{ message: string; logId?: string; breachCount?: number }>(res);
       } catch (err) {
-        console.warn('Failed to log perimeter event to server', err);
-        return { message: 'Perimeter event cached offline', breachCount: 1 };
+        console.warn('Failed to log perimeter event to server, queuing offline', err);
+        offlineQueue.enqueuePerimeterEvent({
+          ...data,
+          timestamp: new Date().toISOString()
+        });
+        return { message: 'Perimeter event queued offline', breachCount: 1 };
       }
     }
   },

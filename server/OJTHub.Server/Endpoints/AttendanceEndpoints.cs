@@ -275,6 +275,15 @@ public static class AttendanceEndpoints
                 return Results.Ok(new { message = "Perimeter event already recorded recently.", ignored = true });
             }
 
+            var defaultNote = req.EventType switch
+            {
+                "Departed" => "Stepped outside geofence perimeter",
+                "Returned" => "Re-entered geofence perimeter",
+                "LocationDisabled" => "Device location was disabled or GPS permission was revoked during active shift",
+                "LocationRestored" => "Device location signal restored",
+                _ => "Perimeter status change"
+            };
+
             var log = new PerimeterLog
             {
                 Id = Guid.NewGuid(),
@@ -286,12 +295,12 @@ public static class AttendanceEndpoints
                 Longitude = req.Longitude,
                 DistanceMeters = req.DistanceMeters,
                 GpsAccuracy = req.GpsAccuracy,
-                Note = req.Note ?? (req.EventType == "Departed" ? "Stepped outside geofence perimeter" : "Re-entered geofence perimeter")
+                Note = req.Note ?? defaultNote
             };
 
             db.PerimeterLogs.Add(log);
 
-            if (req.EventType == "Departed")
+            if (req.EventType == "Departed" || req.EventType == "LocationDisabled")
             {
                 record.PerimeterBreachCount++;
             }

@@ -163,4 +163,83 @@ public class PerimeterAuditTests
         Assert.AreEqual("Departed", dto.PerimeterLogs[0].EventType);
         Assert.AreEqual("Returned", dto.PerimeterLogs[1].EventType);
     }
+
+    [TestMethod]
+    public void PerimeterLog_LocationDisabledEvent_IncrementsBreachCount()
+    {
+        // Arrange
+        var recordId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var record = new AttendanceRecord
+        {
+            Id = recordId,
+            UserId = userId,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            TimeIn = DateTimeOffset.UtcNow.AddHours(-2),
+            TimeInWithinGeofence = true,
+            PerimeterBreachCount = 0
+        };
+
+        // Act: Location service disabled mid-shift
+        var tamperLog = new PerimeterLog
+        {
+            Id = Guid.NewGuid(),
+            AttendanceRecordId = record.Id,
+            UserId = userId,
+            Timestamp = DateTimeOffset.UtcNow.AddHours(-1),
+            EventType = "LocationDisabled",
+            Latitude = 14.599500m,
+            Longitude = 120.984200m,
+            DistanceMeters = 0.0m,
+            GpsAccuracy = 0.0m,
+            Note = "Device location was disabled or GPS permission was revoked during active shift"
+        };
+        record.PerimeterLogs.Add(tamperLog);
+        record.PerimeterBreachCount++;
+
+        // Assert
+        Assert.AreEqual(1, record.PerimeterBreachCount);
+        Assert.HasCount(1, record.PerimeterLogs);
+        Assert.AreEqual("LocationDisabled", record.PerimeterLogs[0].EventType);
+        Assert.IsNotNull(record.PerimeterLogs[0].Note);
+        Assert.Contains("disabled", record.PerimeterLogs[0].Note!);
+    }
+
+    [TestMethod]
+    public void PerimeterLog_LocationRestoredEvent_RecordsRestoredTrailWithoutExtraBreach()
+    {
+        // Arrange
+        var recordId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var record = new AttendanceRecord
+        {
+            Id = recordId,
+            UserId = userId,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            TimeIn = DateTimeOffset.UtcNow.AddHours(-3),
+            PerimeterBreachCount = 1
+        };
+
+        // Act: Location service restored
+        var restoredLog = new PerimeterLog
+        {
+            Id = Guid.NewGuid(),
+            AttendanceRecordId = record.Id,
+            UserId = userId,
+            Timestamp = DateTimeOffset.UtcNow.AddMinutes(-10),
+            EventType = "LocationRestored",
+            Latitude = 14.599512m,
+            Longitude = 120.984222m,
+            DistanceMeters = 15.0m,
+            GpsAccuracy = 8.0m,
+            Note = "Device location signal restored"
+        };
+        record.PerimeterLogs.Add(restoredLog);
+
+        // Assert: Breach count still 1 (not incremented on restore)
+        Assert.AreEqual(1, record.PerimeterBreachCount);
+        Assert.HasCount(1, record.PerimeterLogs);
+        Assert.AreEqual("LocationRestored", record.PerimeterLogs[0].EventType);
+        Assert.AreEqual(15.0m, record.PerimeterLogs[0].DistanceMeters);
+    }
 }

@@ -22,7 +22,8 @@ import {
   UserCheck,
   UserX,
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  WifiOff
 } from 'lucide-react';
 import { downloadDtrCsv } from '../utils/dtrExport';
 
@@ -633,15 +634,22 @@ export const SupervisorPortal: React.FC = () => {
                           )}
 
                           {/* Perimeter Breach & Out-of-Range Badge */}
+                          {r.perimeterLogs?.some(p => p.eventType === 'LocationDisabled') && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              <WifiOff className="w-3 h-3 shrink-0 text-amber-400" />
+                              GPS Signal Disabled
+                            </span>
+                          )}
+
                           {r.perimeterBreachCount && r.perimeterBreachCount > 0 ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
                               <AlertTriangle className="w-3 h-3 shrink-0 text-rose-400" />
-                              {r.perimeterBreachCount} Out-of-Range Event{r.perimeterBreachCount > 1 ? 's' : ''}
+                              {r.perimeterBreachCount} Perimeter / GPS Incident{r.perimeterBreachCount > 1 ? 's' : ''}
                             </span>
                           ) : r.timeOut ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-300/90 border border-emerald-500/20">
                               <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
-                              100% Inside Perimeter
+                              100% Verified in Perimeter
                             </span>
                           ) : null}
                         </div>
@@ -654,34 +662,60 @@ export const SupervisorPortal: React.FC = () => {
                           Net: <span className="font-bold text-sky-400">{r.netRenderedHours ? `${r.netRenderedHours.toFixed(2)}h` : '—'}</span>
                         </div>
 
-                        {/* Perimeter Event Logs Timeline */}
+                        {/* Perimeter & GPS Event Logs Timeline */}
                         {r.perimeterLogs && r.perimeterLogs.length > 0 && (
                           <div className="mt-1.5 pt-1.5 border-t border-slate-800/80 space-y-1">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
-                              <span>Perimeter Audit Trail ({r.perimeterLogs.length} events):</span>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+                                <span>Perimeter & Location Audit Trail ({r.perimeterLogs.length} events):</span>
+                              </div>
+                              {r.perimeterLogs.some(l => l.eventType === 'LocationDisabled') && (
+                                <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" /> Unverified Location Gap
+                                </span>
+                              )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
-                              {r.perimeterLogs.map((log) => (
-                                <div
-                                  key={log.id}
-                                  className={`px-2.5 py-1 rounded-lg border flex items-center justify-between gap-2 ${
-                                    log.eventType === 'Departed'
-                                      ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
-                                      : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
-                                  }`}
-                                >
-                                  <span className="font-semibold flex items-center gap-1">
-                                    <span>{log.eventType === 'Departed' ? '⚠️ Left' : '🟢 Returned'}</span>
-                                    <span className="font-mono text-[10px] opacity-80">
-                                      {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {r.perimeterLogs.map((log) => {
+                                const isTamper = log.eventType === 'LocationDisabled';
+                                const isRestored = log.eventType === 'LocationRestored';
+                                const isDeparture = log.eventType === 'Departed';
+
+                                const badgeClass = isTamper
+                                  ? 'bg-amber-950/50 border-amber-500/40 text-amber-300'
+                                  : isRestored
+                                  ? 'bg-sky-950/40 border-sky-500/30 text-sky-300'
+                                  : isDeparture
+                                  ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                                  : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300';
+
+                                const label = isTamper
+                                  ? '⚠️ GPS Disabled'
+                                  : isRestored
+                                  ? '🛰️ GPS Restored'
+                                  : isDeparture
+                                  ? '⚠️ Left Perimeter'
+                                  : '🟢 Returned';
+
+                                return (
+                                  <div
+                                    key={log.id}
+                                    className={`px-2.5 py-1 rounded-lg border flex items-center justify-between gap-2 ${badgeClass}`}
+                                    title={log.note || undefined}
+                                  >
+                                    <span className="font-semibold flex items-center gap-1 truncate">
+                                      <span>{label}</span>
+                                      <span className="font-mono text-[10px] opacity-80">
+                                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
                                     </span>
-                                  </span>
-                                  <span className="text-[10px] font-mono opacity-90">
-                                    {Math.round(log.distanceMeters)}m away
-                                  </span>
-                                </div>
-                              ))}
+                                    <span className="text-[10px] font-mono opacity-90 truncate max-w-[120px] text-right shrink-0">
+                                      {isTamper ? 'Offline / Off' : `${Math.round(log.distanceMeters)}m away`}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

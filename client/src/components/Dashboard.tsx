@@ -28,7 +28,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) => {
-  const geo = useGeolocation();
+  const geo = useGeolocation({ watch: true });
   const [status, setStatus] = useState<AttendanceStatus | null>(null);
   const [hours, setHours] = useState<HoursSummary | null>(null);
   const [loadingAction, setLoadingAction] = useState<boolean>(false);
@@ -37,9 +37,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
   const [actionError, setActionError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [showRadarMap, setShowRadarMap] = useState<boolean>(false);
-  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => offlineQueue.getPending().length);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => offlineQueue.getTotalPendingCount());
   const [syncingOffline, setSyncingOffline] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isGpsDisabled, setIsGpsDisabled] = useState<boolean>(false);
+  const locationActiveRef = useRef<boolean>(true);
+  const lastKnownCoordsRef = useRef<{ lat: number; lng: number; dist: number } | null>(null);
 
   const loadData = async () => {
     try {
@@ -55,13 +58,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
   };
 
   const handleManualSync = async () => {
-    if (offlineQueue.getPending().length === 0) return;
+    if (offlineQueue.getTotalPendingCount() === 0) return;
     setSyncingOffline(true);
     try {
       const res = await api.attendance.syncOfflineQueue();
       await loadData();
       if (res.synced > 0) {
-        setCalibrationSuccess(`Synchronized ${res.synced} offline attendance punch${res.synced > 1 ? 'es' : ''}!`);
+        setCalibrationSuccess(`Synchronized ${res.synced} offline record${res.synced > 1 ? 's' : ''}!`);
         setTimeout(() => setCalibrationSuccess(null), 4000);
       }
     } catch (err: any) {
@@ -172,6 +175,71 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
       }).catch(err => console.warn('Could not log perimeter event:', err));
     }
   }, [status?.hasActiveShift, status?.todayRecord?.id, currentDistance, allowedRadius, isGpsAccurate]);
+
+  // Keep track of latest known coordinates
+  useEffect(() => {
+    if (geo.latitude !== null && geo.longitude !== null && currentDistance !== null) {
+      lastKnownCoordsRef.current = {
+        lat: geo.latitude,
+        lng: geo.longitude,
+        dist: currentDistance
+      };
+    }
+  }, [geo.latitude, geo.longitude, currentDistance]);
+
+  // Monitor GPS loss or location disable during an active shift
+  useEffect(() => {
+    if (!status?.hasActiveShift || !status.todayRecord?.id) {
+      return;
+    }
+
+    // If geolocation encountered an error (e.g. permission revoked, GPS turned off)
+    if (geo.error && locationActiveRef.current) {
+      locationActiveRef.current = false;
+      setIsGpsDisabled(true);
+
+      const lat = lastKnownCoordsRef.current?.lat ?? workplaceLat;
+      const lng = lastKnownCoordsRef.current?.lng ?? workplaceLng;
+      const dist = lastKnownCoordsRef.current?.dist ?? 0;
+
+      api.attendance.logPerimeterEvent({
+        attendanceRecordId: status.todayRecord.id,
+        eventType: 'LocationDisabled',
+        latitude: lat,
+        longitude: lng,
+        distanceMeters: Math.round(dist),
+        gpsAccuracy: 0,
+        note: `GPS signal lost or location permission revoked during active shift (${geo.error})`
+      }).then(() => {
+        setStatus(prev => {
+          if (!prev?.todayRecord) return prev;
+          return {
+            ...prev,
+            todayRecord: {
+              ...prev.todayRecord,
+              perimeterBreachCount: (prev.todayRecord.perimeterBreachCount || 0) + 1
+            }
+          };
+        });
+      }).catch(err => console.warn('Could not log location disabled event:', err));
+    }
+
+    // If geolocation recovered after being disabled
+    if (geo.latitude !== null && geo.longitude !== null && !locationActiveRef.current) {
+      locationActiveRef.current = true;
+      setIsGpsDisabled(false);
+
+      api.attendance.logPerimeterEvent({
+        attendanceRecordId: status.todayRecord.id,
+        eventType: 'LocationRestored',
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        distanceMeters: Math.round(currentDistance ?? 0),
+        gpsAccuracy: geo.accuracy || 15,
+        note: 'Device location signal restored'
+      }).catch(err => console.warn('Could not log location restored event:', err));
+    }
+  }, [status?.hasActiveShift, status?.todayRecord?.id, geo.error, geo.latitude, geo.longitude, currentDistance, workplaceLat, workplaceLng]);
 
   const formatElapsed = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -401,12 +469,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
               <WifiOff className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
               <div>
                 <p className="font-semibold text-amber-100">
-                  {!isOnline ? 'You are currently offline' : `${pendingSyncCount} attendance punch${pendingSyncCount > 1 ? 'es' : ''} saved offline`}
+                  {!isOnline ? 'You are currently offline' : `${pendingSyncCount} offline record${pendingSyncCount > 1 ? 's' : ''} queued`}
                 </p>
                 <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
                   {pendingSyncCount > 0
-                    ? 'Your exact punch timestamp is safely stored and will auto-sync once internet reconnects.'
-                    : 'Attendance punches will be safely stored offline and synced when you reconnect.'}
+                    ? 'Your exact punch timestamps and location event logs are safely preserved offline and will auto-sync once internet reconnects.'
+                    : 'Attendance punches and location events will be safely stored offline and synced when you reconnect.'}
                 </p>
               </div>
             </div>
@@ -530,10 +598,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
           </div>
         )}
 
-        {/* Active Shift Perimeter Live Status */}
+        {/* Active Shift Perimeter & Location Tamper Live Status */}
         {status?.hasActiveShift && (
           <>
-            {perimeterStatus === 'Outside' ? (
+            {isGpsDisabled ? (
+              <div className="w-full max-w-md mb-4 bg-amber-500/15 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5 text-left animate-fade-in">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1 w-full">
+                  <div className="font-bold text-amber-100 flex items-center justify-between">
+                    <span>GPS / Location Turned Off</span>
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                      Unverified Gap Logged
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                    Your shift timer is still counting, but location loss is logged as an unverified gap for supervisor review. Please turn location back on or allow browser GPS permission.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={geo.refreshLocation}
+                    className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-medium text-[11px] transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${geo.loading ? 'animate-spin' : ''}`} />
+                    <span>Retry Location Signal</span>
+                  </button>
+                </div>
+              </div>
+            ) : perimeterStatus === 'Outside' ? (
               <div className="w-full max-w-md mb-4 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 text-xs text-rose-200 flex items-start gap-2.5 text-left animate-fade-in">
                 <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
@@ -555,7 +646,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
                   <span className="truncate">Currently Inside Workplace Perimeter</span>
                 </span>
                 <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 shrink-0">
-                  {status.todayRecord.perimeterBreachCount} Departure{status.todayRecord.perimeterBreachCount > 1 ? 's' : ''} Logged
+                  {status.todayRecord.perimeterBreachCount} Incident{status.todayRecord.perimeterBreachCount > 1 ? 's' : ''} Logged
                 </span>
               </div>
             ) : null}

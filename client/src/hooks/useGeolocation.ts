@@ -8,7 +8,15 @@ interface GeolocationState {
   loading: boolean;
 }
 
-export function useGeolocation() {
+interface GeolocationOptions {
+  watch?: boolean;
+  enableHighAccuracy?: boolean;
+}
+
+export function useGeolocation(options?: GeolocationOptions) {
+  const watch = options?.watch ?? false;
+  const enableHighAccuracy = options?.enableHighAccuracy ?? true;
+
   const [state, setState] = useState<GeolocationState>({
     latitude: null,
     longitude: null,
@@ -16,6 +24,32 @@ export function useGeolocation() {
     error: null,
     loading: true
   });
+
+  const handleSuccess = useCallback((position: GeolocationPosition) => {
+    setState({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: Math.round(position.coords.accuracy),
+      error: null,
+      loading: false
+    });
+  }, []);
+
+  const handleError = useCallback((err: GeolocationPositionError) => {
+    let message = 'Unable to retrieve location coordinates.';
+    if (err.code === err.PERMISSION_DENIED) {
+      message = 'Location access was denied. Please allow location permissions in your browser settings to verify attendance.';
+    } else if (err.code === err.POSITION_UNAVAILABLE) {
+      message = 'Location signal is unavailable. Please verify GPS is enabled.';
+    } else if (err.code === err.TIMEOUT) {
+      message = 'Location request timed out. Please retry.';
+    }
+    setState(s => ({
+      ...s,
+      error: message,
+      loading: false
+    }));
+  }, []);
 
   const getLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -30,41 +64,34 @@ export function useGeolocation() {
     setState(s => ({ ...s, loading: true, error: null }));
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setState({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: Math.round(position.coords.accuracy),
-          error: null,
-          loading: false
-        });
-      },
-      (err) => {
-        let message = 'Unable to retrieve location coordinates.';
-        if (err.code === err.PERMISSION_DENIED) {
-          message = 'Location access was denied. Please allow location permissions in your browser settings to verify attendance.';
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          message = 'Location signal is unavailable. Please verify GPS is enabled.';
-        } else if (err.code === err.TIMEOUT) {
-          message = 'Location request timed out. Please retry.';
-        }
-        setState(s => ({
-          ...s,
-          error: message,
-          loading: false
-        }));
-      },
+      handleSuccess,
+      handleError,
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy,
         timeout: 15000,
         maximumAge: 5000
       }
     );
-  }, []);
+  }, [enableHighAccuracy, handleSuccess, handleError]);
 
   useEffect(() => {
     getLocation();
-  }, [getLocation]);
+
+    if (watch && typeof navigator !== 'undefined' && navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        handleSuccess,
+        handleError,
+        {
+          enableHighAccuracy,
+          timeout: 15000,
+          maximumAge: 10000
+        }
+      );
+      return () => {
+        navigator.geolocation.clearWatch(watchId);
+      };
+    }
+  }, [watch, enableHighAccuracy, getLocation, handleSuccess, handleError]);
 
   return { ...state, refreshLocation: getLocation };
 }

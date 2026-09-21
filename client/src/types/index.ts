@@ -62,7 +62,7 @@ export interface PerimeterLog {
   attendanceRecordId: string;
   userId: string;
   timestamp: string;
-  eventType: 'Departed' | 'Returned';
+  eventType: 'Departed' | 'Returned' | 'LocationDisabled' | 'LocationRestored';
   latitude: number;
   longitude: number;
   distanceMeters: number;
