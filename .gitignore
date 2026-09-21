@@ -29,10 +29,20 @@ pnpm-debug.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
-## Environment files
+## Environment & Secret files
 .env
-.env.local
-.env.*.local
+.env.*
+*.env
+*.env.*
+*.pem
+*.key
+*.pfx
+.git-credentials
+*git-credentials*
+id_rsa*
+id_ed25519*
+appsettings.*.local.json
+appsettings.Production.json
 
 ## OS generated files
 Thumbs.db

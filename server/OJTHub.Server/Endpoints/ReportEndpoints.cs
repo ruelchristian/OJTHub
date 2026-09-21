@@ -33,7 +33,7 @@ public static class ReportEndpoints
                     TaskTitle = g.TaskTitle,
                     Details = g.Details,
                     HoursSpent = g.HoursSpent,
-                    Category = g.Category,
+                    Category = g.Category ?? "General",
                     CreatedAt = DateTimeOffset.UtcNow
                 }).ToList();
             }
