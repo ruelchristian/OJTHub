@@ -87,4 +87,18 @@ public class AttendanceServiceTests
         // Assert
         Assert.AreEqual(0m, netHours);
     }
+
+    [TestMethod]
+    public void CalculateNetHours_RunawayShiftOverMaxCap_CapsAtSpecifiedMaxDailyHours()
+    {
+        // Arrange: Shift running for 36 hours (e.g. forgot to time out over weekend)
+        var timeIn = new DateTimeOffset(2026, 9, 11, 8, 0, 0, TimeSpan.Zero);
+        var timeOut = timeIn.AddHours(36);
+
+        // Act: Apply 16-hour cap
+        var netHours = _service.CalculateNetHours(timeIn, timeOut, 60, 16.0m);
+
+        // Assert: Must be capped at 16.00 hours
+        Assert.AreEqual(16.00m, netHours, "Runaway shift duration exceeding cap must be limited to maxDailyHours.");
+    }
 }

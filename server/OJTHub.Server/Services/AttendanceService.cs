@@ -22,7 +22,7 @@ public class AttendanceService : IAttendanceService
         return Math.Round((decimal)distance, 1);
     }
 
-    public decimal CalculateNetHours(DateTimeOffset timeIn, DateTimeOffset timeOut, int lunchBreakMinutes)
+    public decimal CalculateNetHours(DateTimeOffset timeIn, DateTimeOffset timeOut, int lunchBreakMinutes, decimal? maxDailyHours = 16.0m)
     {
         var totalMinutes = (timeOut - timeIn).TotalMinutes;
         if (totalMinutes <= 0) return 0m;
@@ -35,7 +35,15 @@ public class AttendanceService : IAttendanceService
         }
 
         double netHours = netMinutes / 60.0;
-        return Math.Round((decimal)netHours, 2);
+        decimal rounded = Math.Round((decimal)netHours, 2);
+
+        // Safeguard: Cap runaway shifts at max allowable daily limit (defaults to 16.0 hours)
+        if (maxDailyHours.HasValue && rounded > maxDailyHours.Value)
+        {
+            return maxDailyHours.Value;
+        }
+
+        return rounded;
     }
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;

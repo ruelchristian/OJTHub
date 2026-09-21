@@ -127,7 +127,13 @@ public static class AttendanceEndpoints
                 now = req.ClientTimestamp.Value;
             }
             var lunchMinutes = req.CustomLunchMinutes ?? record.LunchBreakMinutes;
-            var netHours = attendanceService.CalculateNetHours(record.TimeIn, now, lunchMinutes);
+            var maxCapHours = setting != null ? Math.Max(setting.DailyScheduleHours * 2m, 12m) : 16m;
+            var netHours = attendanceService.CalculateNetHours(record.TimeIn, now, lunchMinutes, maxCapHours);
+
+            if ((now - record.TimeIn).TotalHours >= 12.0 && string.IsNullOrWhiteSpace(record.SupervisorRemark))
+            {
+                record.SupervisorRemark = "Extended shift (>12 hours logged; flagged for supervisor verification)";
+            }
 
             record.TimeOut = now;
             record.TimeOutLatitude = req.Latitude;

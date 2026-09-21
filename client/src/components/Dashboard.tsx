@@ -194,6 +194,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
     }
   };
 
+  const scheduledHours = status?.settings?.dailyScheduleHours ?? 8.0;
+  const lunchMinutes = status?.settings?.defaultLunchMinutes ?? 60;
+  const grossElapsedHours = elapsedSeconds / 3600;
+  const targetElapsedSeconds = (scheduledHours * 3600) + (lunchMinutes * 60);
+  const isTargetReached = !!(status?.hasActiveShift && elapsedSeconds >= targetElapsedSeconds);
+  const isLongShift = !!(status?.hasActiveShift && grossElapsedHours >= 12);
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
       
@@ -434,15 +441,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 mb-3 sm:mb-4">
           <Clock className="w-3.5 h-3.5 text-sky-400" />
           <span>Shift Status:</span>{' '}
-          <span className={status?.hasActiveShift ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>
-            {status?.hasActiveShift ? 'Shift in Progress' : 'No Active Shift'}
+          <span className={
+            isLongShift ? 'text-rose-400 font-bold' :
+            isTargetReached ? 'text-amber-400 font-bold' :
+            status?.hasActiveShift ? 'text-emerald-400 font-bold' : 'text-slate-300 font-medium'
+          }>
+            {isLongShift ? 'Extended Shift (>12h)' :
+             isTargetReached ? `Target Reached (${scheduledHours}h Overtime)` :
+             status?.hasActiveShift ? 'Shift in Progress' : 'No Active Shift'}
           </span>
         </div>
 
         {/* Stopwatch Display */}
-        <div className="text-4xl xs:text-5xl sm:text-6xl font-black tracking-tight font-mono text-white mb-2 select-none">
+        <div className={`text-4xl xs:text-5xl sm:text-6xl font-black tracking-tight font-mono mb-2 select-none ${
+          isLongShift ? 'text-rose-400' :
+          isTargetReached ? 'text-amber-300' :
+          'text-white'
+        }`}>
           {status?.hasActiveShift ? formatElapsed(elapsedSeconds) : '00:00:00'}
         </div>
+
+        {/* Overtime / Long Shift Notifications */}
+        {status?.hasActiveShift && isLongShift && (
+          <div className="w-full max-w-md mb-4 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 text-xs text-rose-200 flex items-start gap-2.5 text-left animate-fade-in">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-rose-100">Long Shift Alert (&gt;12 Hours):</strong> If you forgot to clock out at the end of your shift, tap <strong>TIME OUT</strong> now so your rendered hours are capped and flagged for supervisor verification.
+            </div>
+          </div>
+        )}
+
+        {status?.hasActiveShift && isTargetReached && !isLongShift && (
+          <div className="w-full max-w-md mb-4 bg-amber-500/15 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5 text-left animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-amber-100">Daily Target Reached ({scheduledHours} hrs):</strong> You have completed your scheduled daily hours for today. Remember to punch <strong>TIME OUT</strong> before leaving!
+            </div>
+          </div>
+        )}
+
         <p className="text-xs text-slate-400 mb-6 sm:mb-8 px-2 max-w-sm sm:max-w-md">
           {status?.hasActiveShift
             ? `Shift started at ${new Date(status.todayRecord!.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
