@@ -138,9 +138,12 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       const map = L.map(mapContainerRef.current, {
         center: [latitude, longitude],
         zoom: 16,
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: false
       });
+
+      // Zoom control at topright so it doesn't collide with the top-left legend
+      L.control.zoom({ position: 'topright' }).addTo(map);
 
       // Modern clean CartoDB Voyager tiles (crisp & high performance)
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -242,8 +245,8 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
   }, [deviceLatitude, deviceLongitude]);
 
   // Address search query handler
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent | React.KeyboardEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
@@ -281,20 +284,27 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       {!readOnly && (
         <div className="flex flex-col sm:flex-row gap-2 relative">
           {/* Search Box */}
-          <form onSubmit={handleSearch} className="flex-1 relative">
+          <div className="flex-1 relative">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search workplace address or company (e.g. Ayala Triangle, BGC, Ortigas)..."
+                placeholder="Search address or company (e.g. BGC, Ayala)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-20 py-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-inner"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-9 pr-20 py-2.5 min-h-[44px] text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-inner"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSearch()}
                 disabled={isSearching || !searchQuery.trim()}
-                className="absolute right-1.5 top-1.5 px-3 py-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 cursor-pointer"
               >
                 {isSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Search'}
               </button>
@@ -308,7 +318,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
                     key={place.place_id}
                     type="button"
                     onClick={() => handleSelectPlace(place)}
-                    className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-slate-800/80 transition-colors flex items-start gap-2 text-slate-200"
+                    className="w-full text-left px-3.5 py-2.5 min-h-[44px] text-xs hover:bg-slate-800/80 transition-colors flex items-start gap-2 text-slate-200"
                   >
                     <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
                     <span className="line-clamp-2">{place.display_name}</span>
@@ -316,17 +326,17 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
                 ))}
               </div>
             )}
-          </form>
+          </div>
 
           {/* Use Device Location Button */}
           {onUseCurrentLocation && (
             <button
               type="button"
               onClick={onUseCurrentLocation}
-              className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 hover:text-white transition-colors flex items-center justify-center gap-1.5 shrink-0"
+              className="w-full sm:w-auto min-h-[44px] px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 hover:text-white transition-colors flex items-center justify-center gap-1.5 shrink-0"
               title="Pin to current GPS location"
             >
-              <Compass className="w-4 h-4 text-emerald-400" />
+              <Compass className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Use Current GPS</span>
             </button>
           )}
@@ -338,14 +348,14 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
         <div ref={mapContainerRef} style={{ height, width: '100%', zIndex: 1 }} />
 
         {/* Map Legend Overlay */}
-        <div className="absolute top-2 left-2 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-300 shadow flex items-center gap-3">
+        <div className="absolute top-2 left-2 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-[10px] sm:text-[11px] text-slate-300 shadow flex flex-wrap items-center gap-2 sm:gap-3 max-w-[calc(100%-56px)]">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 border border-white"></span>
-            <span>Workplace ({radiusMeters}m Geofence)</span>
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-sky-500 border border-white shrink-0"></span>
+            <span className="truncate">Workplace ({radiusMeters}m)</span>
           </div>
           {deviceLatitude && (
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
               <span>Your Device</span>
             </div>
           )}
@@ -353,8 +363,8 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
 
         {/* Pin Position Overlay Hint */}
         {!readOnly && (
-          <div className="absolute bottom-2 left-2 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg px-2.5 py-1 text-[10px] text-slate-400 shadow">
-            💡 Drag the blue pin or click anywhere on the map to reposition workplace center
+          <div className="absolute bottom-2 left-2 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-lg px-2.5 py-1 text-[10px] text-slate-400 shadow hidden xs:block max-w-[calc(100%-16px)]">
+            💡 Drag pin or click map to reposition workplace center
           </div>
         )}
       </div>

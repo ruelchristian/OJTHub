@@ -81,25 +81,25 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Settings className="w-5 h-5 text-sky-400" />
-          OJT & Geofence Configuration
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg">
+        <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
+          <Settings className="w-5 h-5 text-sky-400 shrink-0" />
+          <span>OJT & Geofence Configuration</span>
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
           Configure your physical workplace coordinates, perimeter radius, and internship hourly goals.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
         
         {/* Establishment & Interactive Visual Map Picker */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg space-y-4">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between border-b border-slate-800 pb-3 gap-1">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-sky-400" />
+              <MapPin className="w-4 h-4 text-sky-400 shrink-0" />
               <h3 className="text-sm font-bold text-slate-200">Interactive Workplace Map Picker</h3>
             </div>
             <span className="text-[11px] text-slate-400">
@@ -115,16 +115,16 @@ export const SettingsView: React.FC = () => {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="e.g. Acme Corp Philippines / IT Department"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-medium"
+                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-medium"
                 required
               />
             </div>
 
             {/* Interactive Visual Map */}
             <div>
-              <label className="block text-slate-400 font-medium text-xs mb-1.5 flex items-center justify-between">
+              <label className="block text-slate-400 font-medium text-xs mb-1.5 flex flex-col xs:flex-row xs:items-center justify-between gap-0.5">
                 <span>Pinpoint Workplace on Map</span>
-                <span className="text-[11px] text-slate-400">Search address, click map, or drag the blue pin</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-400">Search address, click map, or drag the pin</span>
               </label>
               <WorkplaceMapPicker
                 latitude={lat}
@@ -134,13 +134,13 @@ export const SettingsView: React.FC = () => {
                 deviceLongitude={geo.longitude}
                 onChange={handleMapLocationChange}
                 onUseCurrentLocation={handleUseCurrentLocation}
-                height="380px"
+                height="320px"
               />
             </div>
 
             {/* Radius and Accuracy Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs">
-              <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2 text-xs">
+              <div className="bg-slate-800/60 p-3.5 sm:p-4 rounded-xl border border-slate-700/60 space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="text-slate-300 font-medium">
                     Geofence Radius: <span className="text-sky-400 font-bold">{radius}m</span>
@@ -154,14 +154,14 @@ export const SettingsView: React.FC = () => {
                   step={10}
                   value={radius}
                   onChange={(e) => setRadius(Number(e.target.value))}
-                  className="w-full accent-sky-500 cursor-pointer"
+                  className="w-full h-6 accent-sky-500 cursor-pointer"
                 />
                 <p className="text-[11px] text-slate-400">
                   Trainees within this circular boundary are verified as present at the host establishment.
                 </p>
               </div>
 
-              <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-2">
+              <div className="bg-slate-800/60 p-3.5 sm:p-4 rounded-xl border border-slate-700/60 space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="text-slate-300 font-medium">
                     GPS Accuracy Gate: <span className="text-emerald-400 font-bold">&le; {accuracyLimit}m</span>
@@ -175,7 +175,7 @@ export const SettingsView: React.FC = () => {
                   step={5}
                   value={accuracyLimit}
                   onChange={(e) => setAccuracyLimit(Number(e.target.value))}
-                  className="w-full accent-emerald-500 cursor-pointer"
+                  className="w-full h-6 accent-emerald-500 cursor-pointer"
                 />
                 <p className="text-[11px] text-slate-400">
                   Weak device signals with accuracy worse than {accuracyLimit}m will be prompted to calibrate before punch in.
@@ -188,7 +188,7 @@ export const SettingsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAdvancedCoords(!showAdvancedCoords)}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-colors"
+                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer py-1"
               >
                 <Layers className="w-3.5 h-3.5 text-slate-400" />
                 <span>Advanced Coordinates & Raw Values</span>
@@ -196,7 +196,7 @@ export const SettingsView: React.FC = () => {
               </button>
 
               {showAdvancedCoords && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-800/60 text-xs animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-800/60 text-xs animate-fade-in">
                   <div>
                     <label className="block text-slate-400 font-medium mb-1">Workplace Latitude</label>
                     <input
@@ -204,7 +204,7 @@ export const SettingsView: React.FC = () => {
                       step="0.000001"
                       value={lat}
                       onChange={(e) => setLat(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
+                      className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
                     />
                   </div>
                   <div>
@@ -214,7 +214,7 @@ export const SettingsView: React.FC = () => {
                       step="0.000001"
                       value={lng}
                       onChange={(e) => setLng(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
+                      className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
                     />
                   </div>
                 </div>
@@ -224,13 +224,13 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Training Hours & Schedule Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Target className="w-4 h-4 text-emerald-400" />
+            <Target className="w-4 h-4 text-emerald-400 shrink-0" />
             <h3 className="text-sm font-bold text-slate-200">Training Hours & Schedule</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs">
             <div>
               <label className="block text-slate-400 font-medium mb-1">Total Target OJT Hours</label>
               <input
@@ -238,7 +238,7 @@ export const SettingsView: React.FC = () => {
                 step="1"
                 value={targetHours}
                 onChange={(e) => setTargetHours(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-bold"
+                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-bold"
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">e.g., 300, 486, or 600 hours</span>
@@ -251,7 +251,7 @@ export const SettingsView: React.FC = () => {
                 step="0.5"
                 value={dailyHours}
                 onChange={(e) => setDailyHours(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
+                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">Standard shift length (e.g. 8.0 hrs)</span>
@@ -264,7 +264,7 @@ export const SettingsView: React.FC = () => {
                 step="15"
                 value={lunchMins}
                 onChange={(e) => setLunchMins(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
+                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">Deducted for shifts &gt; 4 hours</span>
@@ -273,7 +273,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-1">
           {savedSuccess && (
             <span className="text-xs text-emerald-400 flex items-center gap-1 font-semibold animate-fade-in">
               <Check className="w-4 h-4" /> Configuration saved successfully!
@@ -282,10 +282,10 @@ export const SettingsView: React.FC = () => {
           <button
             type="submit"
             disabled={saving || loading}
-            className="px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto min-h-[46px] px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Configuration'}
+            <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
           </button>
         </div>
       </form>

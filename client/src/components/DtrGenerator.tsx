@@ -192,24 +192,24 @@ export const DtrGenerator: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-sky-400" />
-            Printable DTR Document Generator
+          <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
+            <FileText className="w-5 h-5 text-sky-400 shrink-0" />
+            <span>Printable DTR Document Generator</span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Generate and export official Daily Time Records (DTR) formatted with institutional standards.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-sky-500"
+            className="flex-1 sm:flex-initial min-h-[42px] bg-slate-800 border border-slate-700 text-slate-100 text-xs sm:text-sm rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-sky-500 cursor-pointer"
           >
             {months.map((m) => (
               <option key={m.value} value={m.value}>
@@ -221,7 +221,7 @@ export const DtrGenerator: React.FC = () => {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-sky-500"
+            className="min-h-[42px] bg-slate-800 border border-slate-700 text-slate-100 text-xs sm:text-sm rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-sky-500 cursor-pointer"
           >
             <option value={2025}>2025</option>
             <option value={2026}>2026</option>
@@ -231,18 +231,18 @@ export const DtrGenerator: React.FC = () => {
           <button
             onClick={generatePdf}
             disabled={loading}
-            className="px-4 py-2 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 text-white shadow transition-all flex items-center gap-2 disabled:opacity-50"
+            className="w-full xs:w-auto min-h-[42px] px-4 py-2 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            Download PDF
+            <span>Download PDF</span>
           </button>
         </div>
       </div>
 
       {/* DTR Preview Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
-        <div className="text-center border-b border-slate-800 pb-6">
-          <h3 className="text-base font-extrabold text-white uppercase tracking-wider">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-xl space-y-4 sm:space-y-6">
+        <div className="text-center border-b border-slate-800 pb-4 sm:pb-6">
+          <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-wider">
             Daily Time Record Preview
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -250,16 +250,16 @@ export const DtrGenerator: React.FC = () => {
           </p>
         </div>
 
-        {/* Trainee Meta Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+        {/* Trainee Meta Summary Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 text-xs">
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-slate-400 text-[10px]">Trainee Name</div>
-            <div className="font-bold text-white mt-0.5">{user?.fullName}</div>
+            <div className="font-bold text-white mt-0.5 truncate">{user?.fullName}</div>
           </div>
 
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-slate-400 text-[10px]">Student / Trainee ID</div>
-            <div className="font-bold text-white mt-0.5">{user?.studentId || 'N/A'}</div>
+            <div className="font-bold text-white mt-0.5 truncate">{user?.studentId || 'N/A'}</div>
           </div>
 
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
@@ -273,17 +273,17 @@ export const DtrGenerator: React.FC = () => {
           </div>
         </div>
 
-        {/* Shifts Table */}
-        <div className="border border-slate-800 rounded-xl overflow-hidden">
+        {/* Shifts Table with Smooth Overflow */}
+        <div className="border border-slate-800 rounded-xl overflow-hidden overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-[11px] font-semibold text-slate-400 uppercase">
+            <thead className="bg-slate-950 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               <tr>
-                <th className="py-2.5 px-4">Date</th>
-                <th className="py-2.5 px-4">Time-In</th>
-                <th className="py-2.5 px-4">Time-Out</th>
-                <th className="py-2.5 px-4">Lunch</th>
-                <th className="py-2.5 px-4">Net Hours</th>
-                <th className="py-2.5 px-4">Status</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Date</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Time-In</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Time-Out</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Lunch</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Net Hours</th>
+                <th className="py-2.5 px-3 sm:px-4 whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -295,13 +295,13 @@ export const DtrGenerator: React.FC = () => {
                 </tr>
               ) : (
                 records.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-800/20">
-                    <td className="py-2.5 px-4 font-medium text-white">{r.date}</td>
-                    <td className="py-2.5 px-4">{new Date(r.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="py-2.5 px-4">{r.timeOut ? new Date(r.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                    <td className="py-2.5 px-4 text-slate-400">{r.lunchBreakMinutes}m</td>
-                    <td className="py-2.5 px-4 font-bold text-white">{r.netRenderedHours ? `${r.netRenderedHours.toFixed(2)}h` : '—'}</td>
-                    <td className="py-2.5 px-4">
+                  <tr key={r.id} className="hover:bg-slate-800/20 transition-colors">
+                    <td className="py-2.5 px-3 sm:px-4 font-medium text-white whitespace-nowrap">{r.date}</td>
+                    <td className="py-2.5 px-3 sm:px-4 whitespace-nowrap">{new Date(r.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="py-2.5 px-3 sm:px-4 whitespace-nowrap">{r.timeOut ? new Date(r.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                    <td className="py-2.5 px-3 sm:px-4 text-slate-400 whitespace-nowrap">{r.lunchBreakMinutes}m</td>
+                    <td className="py-2.5 px-3 sm:px-4 font-bold text-white whitespace-nowrap">{r.netRenderedHours ? `${r.netRenderedHours.toFixed(2)}h` : '—'}</td>
+                    <td className="py-2.5 px-3 sm:px-4 whitespace-nowrap">
                       {r.isVerified ? (
                         <span className="text-sky-400 font-semibold text-[10px]">Verified</span>
                       ) : (
@@ -315,13 +315,13 @@ export const DtrGenerator: React.FC = () => {
           </table>
         </div>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex flex-col sm:flex-row justify-end pt-2">
           <button
             onClick={generatePdf}
-            className="px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-md transition-all flex items-center gap-2"
+            className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            Generate & Download Official DTR
+            <span>Generate & Download Official DTR</span>
           </button>
         </div>
       </div>

@@ -34,14 +34,14 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
+    <div className="min-h-screen min-h-[100dvh] bg-[#0b0f19] text-slate-100 flex flex-col w-full overflow-x-hidden">
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         onOpenAuth={() => setAuthModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 md:pb-10">
         {currentTab === 'dashboard' && <Dashboard onNavigateToSettings={() => setCurrentTab('settings')} />}
         {currentTab === 'history' && <AttendanceHistory />}
         {currentTab === 'activities' && <ActivityLogger />}
@@ -51,8 +51,8 @@ const MainLayout: React.FC = () => {
         {currentTab === 'supervisor' && <SupervisorPortal />}
       </main>
 
-      <footer className="border-t border-slate-800/80 bg-slate-950/60 py-6 text-center text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4">
+      <footer className="border-t border-slate-800/80 bg-slate-950/60 py-5 text-center text-xs text-slate-400 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-6">
+        <div className="max-w-7xl mx-auto px-4 leading-relaxed">
           OJTHub &bull; Geofenced OJT Attendance, AI-Assisted Reporting, and Customizable Management PWA
         </div>
       </footer>
