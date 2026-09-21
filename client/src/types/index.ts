@@ -102,4 +102,7 @@ export interface TraineeSummary {
   completionPercentage: number;
   pendingVerificationCount: number;
   settings?: OjtSetting;
+  isOnDuty?: boolean;
+  activeShiftStartedAt?: string;
+  todayStatus?: 'OnDuty' | 'Completed' | 'NotStarted';
 }

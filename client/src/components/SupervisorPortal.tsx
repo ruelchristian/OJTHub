@@ -2,13 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import type { TraineeSummary, AttendanceRecord } from '../types';
 import { WorkplaceMapPicker } from './WorkplaceMapPicker';
-import { Users, ShieldCheck, CheckCircle2, Clock, AlertCircle, MessageSquare, X, Copy, Check, Sliders, CheckCheck, MapPin, Layers, ChevronDown, ChevronUp } from 'lucide-react';
+import { 
+  Users, 
+  ShieldCheck, 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  MessageSquare, 
+  X, 
+  Copy, 
+  Check, 
+  Sliders, 
+  CheckCheck, 
+  MapPin, 
+  Layers, 
+  ChevronDown, 
+  ChevronUp,
+  Activity,
+  UserCheck,
+  UserX
+} from 'lucide-react';
 
 export const SupervisorPortal: React.FC = () => {
   const [trainees, setTrainees] = useState<TraineeSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [myCode, setMyCode] = useState<string>('');
   const [codeCopied, setCodeCopied] = useState<boolean>(false);
+  const [dutyFilter, setDutyFilter] = useState<'all' | 'onDuty' | 'completed' | 'notStarted' | 'pending'>('all');
 
   // Selected Trainee Detail Modal
   const [selectedTrainee, setSelectedTrainee] = useState<TraineeSummary | null>(null);
@@ -212,10 +232,166 @@ export const SupervisorPortal: React.FC = () => {
         </div>
       </div>
 
+      {/* Live Headcount & Duty Tracker Summary Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        {/* On Duty Card */}
+        <button
+          onClick={() => setDutyFilter(dutyFilter === 'onDuty' ? 'all' : 'onDuty')}
+          className={`p-3 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+            dutyFilter === 'onDuty'
+              ? 'bg-emerald-950/60 border-emerald-500 shadow-md shadow-emerald-950/50 ring-1 ring-emerald-500'
+              : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/40 hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              On Duty Now
+            </span>
+            <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-white">
+            {trainees.filter(t => t.isOnDuty).length}
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">
+            Active in workplace
+          </p>
+        </button>
+
+        {/* Completed Today Card */}
+        <button
+          onClick={() => setDutyFilter(dutyFilter === 'completed' ? 'all' : 'completed')}
+          className={`p-3 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            dutyFilter === 'completed'
+              ? 'bg-sky-950/60 border-sky-500 shadow-md shadow-sky-950/50 ring-1 ring-sky-500'
+              : 'bg-slate-900/90 border-slate-800 hover:border-sky-500/40 hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+              Shift Done
+            </span>
+            <UserCheck className="w-4 h-4 text-sky-400 shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-white">
+            {trainees.filter(t => !t.isOnDuty && t.todayStatus === 'Completed').length}
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">
+            Completed today
+          </p>
+        </button>
+
+        {/* Off Duty Card */}
+        <button
+          onClick={() => setDutyFilter(dutyFilter === 'notStarted' ? 'all' : 'notStarted')}
+          className={`p-3 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            dutyFilter === 'notStarted'
+              ? 'bg-slate-800 border-slate-600 shadow-md ring-1 ring-slate-500'
+              : 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Off Duty
+            </span>
+            <UserX className="w-4 h-4 text-slate-400 shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-white">
+            {trainees.filter(t => !t.isOnDuty && t.todayStatus === 'NotStarted').length}
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">
+            Not timed in today
+          </p>
+        </button>
+
+        {/* Pending Approval Card */}
+        <button
+          onClick={() => setDutyFilter(dutyFilter === 'pending' ? 'all' : 'pending')}
+          className={`p-3 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            dutyFilter === 'pending'
+              ? 'bg-amber-950/60 border-amber-500 shadow-md shadow-amber-950/50 ring-1 ring-amber-500'
+              : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/40 hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+              Needs Approval
+            </span>
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-white">
+            {trainees.reduce((acc, t) => acc + t.pendingVerificationCount, 0)}
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 truncate">
+            Across {trainees.filter(t => t.pendingVerificationCount > 0).length} trainee{trainees.filter(t => t.pendingVerificationCount > 0).length === 1 ? '' : 's'}
+          </p>
+        </button>
+      </div>
+
       {/* Trainee Roster Grid */}
       <div className="space-y-3">
-        <div className="text-xs font-semibold text-slate-400 px-1">
-          Registered Trainees Roster ({trainees.length})
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+          <div className="text-xs font-semibold text-slate-400">
+            Registered Trainees Roster ({trainees.length})
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-[11px]">
+            <button
+              onClick={() => setDutyFilter('all')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer shrink-0 ${
+                dutyFilter === 'all'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All ({trainees.length})
+            </button>
+            <button
+              onClick={() => setDutyFilter('onDuty')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                dutyFilter === 'onDuty'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              On Duty ({trainees.filter(t => t.isOnDuty).length})
+            </button>
+            <button
+              onClick={() => setDutyFilter('completed')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer shrink-0 ${
+                dutyFilter === 'completed'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-sky-300'
+              }`}
+            >
+              Done Today ({trainees.filter(t => !t.isOnDuty && t.todayStatus === 'Completed').length})
+            </button>
+            <button
+              onClick={() => setDutyFilter('notStarted')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer shrink-0 ${
+                dutyFilter === 'notStarted'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              Off Duty ({trainees.filter(t => !t.isOnDuty && t.todayStatus === 'NotStarted').length})
+            </button>
+            <button
+              onClick={() => setDutyFilter('pending')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer shrink-0 ${
+                dutyFilter === 'pending'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-amber-300'
+              }`}
+            >
+              Pending ({trainees.filter(t => t.pendingVerificationCount > 0).length})
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -228,34 +404,95 @@ export const SupervisorPortal: React.FC = () => {
             <Users className="w-8 h-8 mx-auto text-slate-600 mb-2" />
             No registered trainees found in the system yet.
           </div>
+        ) : trainees.filter(t => {
+            if (dutyFilter === 'onDuty') return t.isOnDuty;
+            if (dutyFilter === 'completed') return !t.isOnDuty && t.todayStatus === 'Completed';
+            if (dutyFilter === 'notStarted') return !t.isOnDuty && t.todayStatus === 'NotStarted';
+            if (dutyFilter === 'pending') return t.pendingVerificationCount > 0;
+            return true;
+          }).length === 0 ? (
+          <div className="p-10 text-center text-slate-400 text-sm bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl space-y-3">
+            <Users className="w-8 h-8 mx-auto text-slate-600 mb-1" />
+            <p>No trainees match the selected "{dutyFilter}" filter.</p>
+            <button
+              onClick={() => setDutyFilter('all')}
+              className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+            >
+              Clear Filter & Show All
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            {trainees.map((t) => (
+            {trainees
+              .filter(t => {
+                if (dutyFilter === 'onDuty') return t.isOnDuty;
+                if (dutyFilter === 'completed') return !t.isOnDuty && t.todayStatus === 'Completed';
+                if (dutyFilter === 'notStarted') return !t.isOnDuty && t.todayStatus === 'NotStarted';
+                if (dutyFilter === 'pending') return t.pendingVerificationCount > 0;
+                return true;
+              })
+              .map((t) => (
               <div
                 key={t.traineeId}
-                className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition-colors flex flex-col justify-between gap-4"
+                className={`bg-slate-900 border rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm transition-all flex flex-col justify-between gap-4 ${
+                  t.isOnDuty
+                    ? 'border-emerald-500/40 hover:border-emerald-500/60 ring-1 ring-emerald-500/20'
+                    : 'border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-white truncate">{t.fullName}</h4>
+                      <h4 className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                        {t.fullName}
+                      </h4>
                       <div className="text-[11px] text-slate-400 truncate">
                         {t.email} {t.studentId ? `• ID: ${t.studentId}` : ''}
                       </div>
                     </div>
-                    {t.pendingVerificationCount > 0 ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
-                        {t.pendingVerificationCount} Pending
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
-                        Up to Date
-                      </span>
-                    )}
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {/* Live Duty Status Badge */}
+                      {t.isOnDuty ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          <span>On Duty</span>
+                        </span>
+                      ) : t.todayStatus === 'Completed' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-300 border border-sky-500/20">
+                          <CheckCircle2 className="w-3 h-3 text-sky-400" />
+                          <span>Shift Done</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/80 text-slate-400 border border-slate-700/50">
+                          <Clock className="w-3 h-3 text-slate-500" />
+                          <span>Off Duty</span>
+                        </span>
+                      )}
+
+                      {/* Pending Verification Pill */}
+                      {t.pendingVerificationCount > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          {t.pendingVerificationCount} Pending
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/60 text-emerald-400/80 border border-slate-800">
+                          Up to Date
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="text-xs text-slate-300 font-medium mb-3 truncate">
-                    {t.companyName}
+                  <div className="text-xs text-slate-300 font-medium mb-3 truncate flex items-center justify-between">
+                    <span className="truncate">{t.companyName}</span>
+                    {t.isOnDuty && t.activeShiftStartedAt && (
+                      <span className="text-[10px] text-emerald-400/90 font-mono shrink-0 ml-2">
+                        In: {new Date(t.activeShiftStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </div>
 
                   {/* Progress bar */}
@@ -268,7 +505,9 @@ export const SupervisorPortal: React.FC = () => {
                     </div>
                     <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          t.isOnDuty ? 'bg-gradient-to-r from-sky-500 to-emerald-400' : 'bg-sky-500'
+                        }`}
                         style={{ width: `${Math.min(100, t.completionPercentage)}%` }}
                       />
                     </div>

@@ -202,4 +202,91 @@ public class SupervisorGovernanceTests
         Assert.HasCount(1, candidateRecords);
         Assert.AreEqual(records[0].Id, candidateRecords[0].Id);
     }
+
+    [TestMethod]
+    public void TraineeDutyStatus_ActiveShift_IsMarkedOnDuty()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var shiftStart = DateTimeOffset.UtcNow.AddHours(-2);
+        var records = new List<AttendanceRecord>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Date = today,
+                TimeIn = shiftStart,
+                TimeOut = null // Active shift
+            }
+        };
+
+        // Act
+        var activeShift = records.FirstOrDefault(a => a.TimeOut == null);
+        var isOnDuty = activeShift != null;
+        var todayRecord = records.FirstOrDefault(a => a.Date == today);
+        var todayStatus = isOnDuty ? "OnDuty" : (todayRecord != null && todayRecord.TimeOut != null ? "Completed" : "NotStarted");
+
+        // Assert
+        Assert.IsTrue(isOnDuty);
+        Assert.AreEqual("OnDuty", todayStatus);
+        Assert.AreEqual(shiftStart, activeShift?.TimeIn);
+    }
+
+    [TestMethod]
+    public void TraineeDutyStatus_CompletedShiftToday_IsMarkedCompleted()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var records = new List<AttendanceRecord>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Date = today,
+                TimeIn = DateTimeOffset.UtcNow.AddHours(-9),
+                TimeOut = DateTimeOffset.UtcNow.AddHours(-1),
+                NetRenderedHours = 8.0m
+            }
+        };
+
+        // Act
+        var activeShift = records.FirstOrDefault(a => a.TimeOut == null);
+        var isOnDuty = activeShift != null;
+        var todayRecord = records.FirstOrDefault(a => a.Date == today);
+        var todayStatus = isOnDuty ? "OnDuty" : (todayRecord != null && todayRecord.TimeOut != null ? "Completed" : "NotStarted");
+
+        // Assert
+        Assert.IsFalse(isOnDuty);
+        Assert.AreEqual("Completed", todayStatus);
+    }
+
+    [TestMethod]
+    public void TraineeDutyStatus_NoShiftToday_IsMarkedNotStarted()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var yesterday = today.AddDays(-1);
+        var records = new List<AttendanceRecord>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Date = yesterday,
+                TimeIn = DateTimeOffset.UtcNow.AddDays(-1),
+                TimeOut = DateTimeOffset.UtcNow.AddDays(-1).AddHours(8),
+                NetRenderedHours = 8.0m
+            }
+        };
+
+        // Act
+        var activeShift = records.FirstOrDefault(a => a.TimeOut == null);
+        var isOnDuty = activeShift != null;
+        var todayRecord = records.FirstOrDefault(a => a.Date == today);
+        var todayStatus = isOnDuty ? "OnDuty" : (todayRecord != null && todayRecord.TimeOut != null ? "Completed" : "NotStarted");
+
+        // Assert
+        Assert.IsFalse(isOnDuty);
+        Assert.AreEqual("NotStarted", todayStatus);
+    }
 }
+

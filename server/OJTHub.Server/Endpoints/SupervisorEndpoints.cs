@@ -30,7 +30,10 @@ public static class SupervisorEndpoints
         decimal RenderedHours,
         decimal CompletionPercentage,
         int PendingVerificationCount,
-        OjtSettingDto? Settings = null
+        OjtSettingDto? Settings = null,
+        bool IsOnDuty = false,
+        DateTimeOffset? ActiveShiftStartedAt = null,
+        string TodayStatus = "NotStarted"
     );
 
     public static RouteGroupBuilder MapSupervisorEndpoints(this RouteGroupBuilder group)
@@ -152,12 +155,18 @@ public static class SupervisorEndpoints
                 .OrderBy(u => u.FullName)
                 .ToListAsync();
 
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var dtos = trainees.Select(t =>
             {
                 var target = t.OjtSetting?.TargetTotalHours ?? 486.0m;
                 var rendered = t.AttendanceRecords.Where(a => a.NetRenderedHours != null).Sum(a => a.NetRenderedHours ?? 0m);
                 var pct = target > 0 ? Math.Min(100m, Math.Round((rendered / target) * 100m, 1)) : 0m;
                 var pending = t.AttendanceRecords.Count(a => a.TimeOut != null && !a.IsVerified);
+
+                var activeShift = t.AttendanceRecords.FirstOrDefault(a => a.TimeOut == null);
+                var isOnDuty = activeShift != null;
+                var todayRecord = t.AttendanceRecords.FirstOrDefault(a => a.Date == today);
+                var todayStatus = isOnDuty ? "OnDuty" : (todayRecord != null && todayRecord.TimeOut != null ? "Completed" : "NotStarted");
 
                 OjtSettingDto? settingDto = null;
                 if (t.OjtSetting != null)
@@ -188,7 +197,10 @@ public static class SupervisorEndpoints
                     rendered,
                     pct,
                     pending,
-                    settingDto
+                    settingDto,
+                    isOnDuty,
+                    activeShift?.TimeIn,
+                    todayStatus
                 );
             }).ToList();
 
