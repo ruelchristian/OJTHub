@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OJTHub.Server.Data;
 using OJTHub.Server.DTOs;
 using OJTHub.Server.Models;
+using OJTHub.Server.Services;
 
 namespace OJTHub.Server.Endpoints;
 
@@ -107,6 +108,20 @@ public static class ActivityEndpoints
         })
         .RequireAuthorization()
         .WithName("DeleteActivity")
+        .WithTags("Activities");
+
+        group.MapPost("/polish", async (PolishTaskRequest req, IGeminiService geminiService, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.TaskTitle) && string.IsNullOrWhiteSpace(req.Details))
+            {
+                return Results.BadRequest(new { message = "Task title or details must be provided to polish." });
+            }
+
+            var polished = await geminiService.PolishTaskNarrativeAsync(req.TaskTitle, req.Details, req.Category, ct);
+            return Results.Ok(new PolishTaskResponse(polished));
+        })
+        .AllowAnonymous()
+        .WithName("PolishTaskActivity")
         .WithTags("Activities");
 
         return group;

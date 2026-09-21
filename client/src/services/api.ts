@@ -335,6 +335,36 @@ export const api = {
         headers: { ...getAuthHeader() }
       });
       return handleResponse<void>(res);
+    },
+
+    async polish(data: { taskTitle: string; details?: string; category?: string }): Promise<{ polishedDetails: string }> {
+      try {
+        const res = await fetch(`${API_BASE}/activities/polish`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          return await handleResponse<{ polishedDetails: string }>(res);
+        }
+      } catch (e) {
+        console.warn('Backend polish failed, using client-side fallback polish', e);
+      }
+      // Graceful offline/guest fallback
+      const title = data.taskTitle.trim() || 'assigned task';
+      const raw = (data.details || '').trim().replace(/\.$/, '');
+      const category = data.category || 'General';
+      if (raw) {
+        return {
+          polishedDetails: `Spearheaded ${title.toLowerCase()}: ${raw}. Ensured thorough validation and adherence to institutional ${category.toLowerCase()} standards.`
+        };
+      }
+      return {
+        polishedDetails: `Successfully completed operational deliverables for ${title.toLowerCase()} within ${category.toLowerCase()} scope, documenting key findings and verifying functional requirements.`
+      };
     }
   },
 

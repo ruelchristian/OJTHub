@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import type { ActivityLog } from '../types';
-import { CheckSquare, Plus, Trash2, Calendar, Clock, Tag } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Calendar, Clock, Tag, Sparkles, Check } from 'lucide-react';
 
 export const ActivityLogger: React.FC = () => {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -15,6 +15,8 @@ export const ActivityLogger: React.FC = () => {
   const [category, setCategory] = useState<string>('Development');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [polishing, setPolishing] = useState<boolean>(false);
+  const [polishedJustNow, setPolishedJustNow] = useState<boolean>(false);
 
   const loadActivities = async () => {
     setLoading(true);
@@ -56,6 +58,27 @@ export const ActivityLogger: React.FC = () => {
       setFormError(err.message || 'Failed to save activity.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePolishWithAi = async () => {
+    if (!taskTitle.trim() && !details.trim()) return;
+    setPolishing(true);
+    try {
+      const res = await api.activities.polish({
+        taskTitle: taskTitle.trim(),
+        details: details.trim(),
+        category
+      });
+      if (res?.polishedDetails) {
+        setDetails(res.polishedDetails);
+        setPolishedJustNow(true);
+        setTimeout(() => setPolishedJustNow(false), 3500);
+      }
+    } catch (err) {
+      console.error('Failed to polish activity', err);
+    } finally {
+      setPolishing(false);
     }
   };
 
@@ -160,14 +183,52 @@ export const ActivityLogger: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-slate-400 font-medium mb-1">Task Details & Accomplishments</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-slate-400 font-medium">Task Details & Accomplishments</label>
+                <button
+                  type="button"
+                  onClick={handlePolishWithAi}
+                  disabled={polishing || (!taskTitle.trim() && !details.trim())}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm active:scale-95 ${
+                    polishedJustNow
+                      ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-gradient-to-r from-purple-600/25 via-indigo-600/25 to-sky-600/25 hover:from-purple-600/40 hover:to-sky-600/40 border border-purple-500/40 text-purple-300 hover:text-purple-100'
+                  }`}
+                  title="Elevate draft notes into university-grade competency narrative using AI"
+                >
+                  {polishing ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                      <span>Polishing...</span>
+                    </>
+                  ) : polishedJustNow ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Polished with AI!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Polish with AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
               <textarea
                 rows={3}
-                placeholder="Describe key actions taken, tools used, and technical learnings..."
+                placeholder="Describe key actions taken, tools used, and technical learnings (or type rough notes and click 'Polish with AI')..."
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 leading-relaxed"
+                className={`w-full bg-slate-800 border rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed transition-all ${
+                  polishedJustNow ? 'border-purple-500/80 ring-1 ring-purple-500/40' : 'border-slate-700 focus:border-sky-500'
+                }`}
               />
+              {polishedJustNow && (
+                <p className="text-[10px] text-purple-300 mt-1 flex items-center gap-1 animate-fade-in">
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  Elevated to university-grade competency phrasing suitable for your DTR.
+                </p>
+              )}
             </div>
 
             <button

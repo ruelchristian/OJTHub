@@ -171,4 +171,105 @@ public class GeminiService : IGeminiService
 
         return sb.ToString();
     }
+
+    public async Task<string> PolishTaskNarrativeAsync(
+        string taskTitle,
+        string? details,
+        string? category,
+        CancellationToken ct = default)
+    {
+        var apiKey = _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        var effectiveCategory = string.IsNullOrWhiteSpace(category) ? "Technical Training" : category.Trim();
+        var rawNotes = string.IsNullOrWhiteSpace(details) ? taskTitle : details.Trim();
+
+        var prompt = $"""
+            You are an expert technical internship supervisor and university OJT coordinator.
+            Your task is to rewrite the student's raw draft task log into an impressive, professional, university-grade competency narrative for their official Daily Time Record (DTR) logbook.
+
+            Student's Task Title: {taskTitle}
+            Category: {effectiveCategory}
+            Student's Raw Draft Notes: {rawNotes}
+
+            Guidelines:
+            - Start with a strong action verb (e.g., Developed, Configured, Analyzed, Executed, Documented, Validated, Optimized).
+            - Highlight technical context, tools used, and professional deliverables.
+            - Keep it concise: 1 to 2 clear, polished sentences (approx 20-45 words).
+            - Respond ONLY with the polished narrative text. DO NOT add quotes, markdown bullets, greetings, or conversational remarks.
+            """;
+
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY")
+        {
+            _logger.LogWarning("Gemini API key is not configured. Returning local polished template.");
+            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+        }
+
+        try
+        {
+            var model = _config["Gemini:Model"] ?? "gemini-1.5-flash";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                }
+            };
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(requestPayload),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.PostAsync(url, jsonContent, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError("Gemini API error ({StatusCode}): {Error}", response.StatusCode, err);
+                return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(responseJson);
+
+            var root = doc.RootElement;
+            if (root.TryGetProperty("candidates", out var candidates) &&
+                candidates.GetArrayLength() > 0 &&
+                candidates[0].TryGetProperty("content", out var content) &&
+                content.TryGetProperty("parts", out var parts) &&
+                parts.GetArrayLength() > 0 &&
+                parts[0].TryGetProperty("text", out var textElement))
+            {
+                var text = textElement.GetString()?.Trim().Trim('"', '\'');
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+
+            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to call Gemini API for polishing. Falling back to template.");
+            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+        }
+    }
+
+    private static string GenerateFallbackPolish(string taskTitle, string? details, string category)
+    {
+        var title = string.IsNullOrWhiteSpace(taskTitle) ? "assigned tasks" : taskTitle.Trim();
+        var raw = string.IsNullOrWhiteSpace(details) ? "" : details.Trim().TrimEnd('.');
+
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            return $"Spearheaded {title.ToLowerInvariant()}: {raw}. Ensured thorough validation and adherence to institutional {category.ToLowerInvariant()} standards.";
+        }
+
+        return $"Successfully completed operational deliverables for {title.ToLowerInvariant()} within {category.ToLowerInvariant()} scope, documenting key findings and verifying functional requirements.";
+    }
 }
+

@@ -25,3 +25,14 @@ public record ActivityLogDto(
     string Category,
     DateTimeOffset CreatedAt
 );
+
+public record PolishTaskRequest(
+    string TaskTitle,
+    string? Details,
+    string? Category
+);
+
+public record PolishTaskResponse(
+    string PolishedDetails
+);
+
