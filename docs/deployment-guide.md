@@ -56,14 +56,16 @@ The multi-stage build performs 3 steps:
 
 ---
 
-## 4. Launching the Deployment on Render
+## 4. Live Deployment Status
 
-### Method A: Connect Blueprint (Recommended)
-1. Push all code to your GitHub repository: `https://github.com/ruelchristian/OJTHub`.
-2. In the [Render Dashboard](https://dashboard.render.com), click **New +** $\to$ **Blueprint**.
-3. Select your `OJTHub` repository.
-4. Render will read [`render.yaml`](file:///E:/OJTHub/render.yaml), display the `ojthub-db` database and `ojthub` web service, and provision both automatically.
+- **Web Application**: [https://ojthub.onrender.com](https://ojthub.onrender.com)
+- **Health Check Endpoint**: [https://ojthub.onrender.com/api/health](https://ojthub.onrender.com/api/health)
+- **Render Service ID**: `srv-dao897h42hec738rdqq0` (Region: Singapore)
+- **Render Database ID**: `dpg-dao89lo473hc739b2s4g-a` (`ojthub-db`, PostgreSQL 16)
+- **GitHub Repository**: [https://github.com/ruelchristian/OJTHub](https://github.com/ruelchristian/OJTHub)
+- **Render Dashboard**: [https://dashboard.render.com/web/srv-dao897h42hec738rdqq0](https://dashboard.render.com/web/srv-dao897h42hec738rdqq0)
 
-### Method B: Via Render MCP / Web Service
-1. Create the web service using the Render MCP `create_service` tool pointing to `https://github.com/ruelchristian/OJTHub`.
-2. Attach a PostgreSQL database connection string (`DATABASE_URL`).
+### Verified Operations:
+- Frontend SPA delivery with client routing (`/`, `/login`, `/dashboard`, `/supervisor`).
+- Backend Web API endpoints under `/api/*`.
+- PostgreSQL database read/write, user registration, JWT token generation, and automatic EF Core table creation.
