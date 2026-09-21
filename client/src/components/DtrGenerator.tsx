@@ -4,7 +4,8 @@ import autoTable from 'jspdf-autotable';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { AttendanceRecord, OjtSetting } from '../types';
-import { FileText, Download, Printer } from 'lucide-react';
+import { FileText, Download, Printer, FileSpreadsheet } from 'lucide-react';
+import { downloadDtrCsv } from '../utils/dtrExport';
 
 export const DtrGenerator: React.FC = () => {
   const { user } = useAuth();
@@ -191,6 +192,18 @@ export const DtrGenerator: React.FC = () => {
     doc.save(`DTR_${user?.fullName?.replace(/\s+/g, '_')}_${monthName}_${selectedYear}.pdf`);
   };
 
+  const handleExportCsv = () => {
+    downloadDtrCsv({
+      traineeName: user?.fullName || 'Trainee',
+      studentId: user?.studentId,
+      companyName: setting?.companyName || 'Host Training Establishment',
+      targetTotalHours: setting?.targetTotalHours || 486,
+      month: selectedMonth,
+      year: selectedYear,
+      records
+    });
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Header Banner */}
@@ -235,6 +248,16 @@ export const DtrGenerator: React.FC = () => {
           >
             <Download className="w-4 h-4" />
             <span>Download PDF</span>
+          </button>
+
+          <button
+            onClick={handleExportCsv}
+            disabled={loading}
+            className="w-full xs:w-auto min-h-[42px] px-3.5 py-2 rounded-xl font-bold text-xs bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 active:scale-95 shadow transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            title="Export official spreadsheet DTR for Microsoft Excel & Google Sheets"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Export Excel / CSV</span>
           </button>
         </div>
       </div>

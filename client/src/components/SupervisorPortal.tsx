@@ -20,8 +20,10 @@ import {
   ChevronUp,
   Activity,
   UserCheck,
-  UserX
+  UserX,
+  FileSpreadsheet
 } from 'lucide-react';
+import { downloadDtrCsv } from '../utils/dtrExport';
 
 export const SupervisorPortal: React.FC = () => {
   const [trainees, setTrainees] = useState<TraineeSummary[]>([]);
@@ -172,6 +174,20 @@ export const SupervisorPortal: React.FC = () => {
     } finally {
       setBatchVerifying(false);
     }
+  };
+
+  const handleExportTraineeCsv = () => {
+    if (!selectedTrainee) return;
+    const now = new Date();
+    downloadDtrCsv({
+      traineeName: selectedTrainee.fullName,
+      studentId: selectedTrainee.studentId,
+      companyName: selectedTrainee.companyName,
+      targetTotalHours: selectedTrainee.targetTotalHours,
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      records
+    });
   };
 
   return (
@@ -561,6 +577,18 @@ export const SupervisorPortal: React.FC = () => {
                     <span className="sm:hidden">{batchVerifying ? '...' : 'Batch Verify'}</span>
                   </button>
                 )}
+
+                <button
+                  onClick={handleExportTraineeCsv}
+                  disabled={records.length === 0}
+                  className="min-h-[38px] px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 active:scale-95 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  title="Export official trainee DTR spreadsheet for Excel or Google Sheets"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline">Export DTR (CSV)</span>
+                  <span className="sm:hidden">CSV</span>
+                </button>
+
                 <button
                   onClick={() => setSelectedTrainee(null)}
                   className="min-h-[38px] min-w-[38px] p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer shrink-0"
