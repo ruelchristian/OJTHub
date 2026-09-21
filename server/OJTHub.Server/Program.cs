@@ -23,9 +23,35 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Configure Database (PostgreSQL + EF Core per proposal specification)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-                       ?? "Host=localhost;Port=5434;Database=ojthub;Username=postgres;Password=postgres";
+// Configure PORT for container deployment (Render automatically injects PORT=10000)
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(renderPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{renderPort}");
+}
+
+// Configure Database (PostgreSQL + EF Core, supporting both ADO.NET and postgresql:// URL formats)
+var rawConn = Environment.GetEnvironmentVariable("DATABASE_URL")
+              ?? builder.Configuration.GetConnectionString("DefaultConnection") 
+              ?? "Host=localhost;Port=5434;Database=ojthub;Username=postgres;Password=postgres";
+
+static string ParseConnectionString(string connStr)
+{
+    if (connStr.StartsWith("postgres://") || connStr.StartsWith("postgresql://"))
+    {
+        var uri = new Uri(connStr);
+        var userInfo = uri.UserInfo.Split(':');
+        var user = userInfo[0];
+        var pass = userInfo.Length > 1 ? userInfo[1] : "";
+        var host = uri.Host;
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var db = uri.AbsolutePath.TrimStart('/');
+        return $"Host={host};Port={port};Database={db};Username={user};Password={pass};SSL Mode=Prefer;Trust Server Certificate=true;";
+    }
+    return connStr;
+}
+
+var connectionString = ParseConnectionString(rawConn);
 
 builder.Services.AddDbContext<OJTHubDbContext>(options =>
 {
@@ -83,6 +109,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowClient");
+
+// Serve frontend static files (React PWA)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -94,12 +125,14 @@ app.MapGroup("/api/activities").MapActivityEndpoints();
 app.MapGroup("/api/reports").MapReportEndpoints();
 app.MapGroup("/api/supervisor").MapSupervisorEndpoints();
 
-app.MapGet("/", () => Results.Ok(new
+app.MapGet("/api/health", () => Results.Ok(new
 {
     system = "OJTHub API Server",
     status = "Online",
-    version = "1.0.0",
-    docs = "/openapi/v1.json"
+    version = "1.0.0"
 }));
+
+// Fallback any client routes to React SPA index.html
+app.MapFallbackToFile("index.html");
 
 app.Run();

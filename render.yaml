@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: ojthub
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ojthub-db
+          property: connectionString
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Jwt__SecretKey
+        generateValue: true
+      - key: Jwt__Issuer
+        value: OJTHubAPI
+      - key: Jwt__Audience
+        value: OJTHubClient
+
+databases:
+  - name: ojthub-db
+    plan: free
+    region: singapore
+    databaseName: ojthub
+    user: ojthub_user
