@@ -24,7 +24,7 @@ export const SupervisorPortal: React.FC = () => {
   const [cfgLat, setCfgLat] = useState<number>(14.599512);
   const [cfgLng, setCfgLng] = useState<number>(120.984222);
   const [cfgRadius, setCfgRadius] = useState<number>(100);
-  const [cfgAccuracy, setCfgAccuracy] = useState<number>(50);
+  const [cfgAccuracy, setCfgAccuracy] = useState<number>(150);
   const [cfgTargetHours, setCfgTargetHours] = useState<string>('486.0');
   const [cfgDailyHours, setCfgDailyHours] = useState<string>('8.0');
   const [cfgLunchMins, setCfgLunchMins] = useState<number>(60);
@@ -66,7 +66,7 @@ export const SupervisorPortal: React.FC = () => {
     setCfgLat(s?.workplaceLatitude || 14.599512);
     setCfgLng(s?.workplaceLongitude || 120.984222);
     setCfgRadius(s?.geofenceRadiusMeters || 100);
-    setCfgAccuracy(s?.gpsAccuracyThreshold || 50);
+    setCfgAccuracy(s?.gpsAccuracyThreshold || 150);
     setCfgTargetHours((s?.targetTotalHours || t.targetTotalHours || 486.0).toString());
     setCfgDailyHours((s?.dailyScheduleHours || 8.0).toString());
     setCfgLunchMins(s?.defaultLunchMinutes || 60);
@@ -591,9 +591,9 @@ export const SupervisorPortal: React.FC = () => {
                       <input
                         type="number"
                         min="10"
-                        max="200"
+                        max="300"
                         value={cfgAccuracy}
-                        onChange={(e) => setCfgAccuracy(parseInt(e.target.value) || 50)}
+                        onChange={(e) => setCfgAccuracy(parseInt(e.target.value) || 150)}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
                       />
                     </div>

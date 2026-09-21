@@ -17,7 +17,7 @@ export const SettingsView: React.FC = () => {
   const [lat, setLat] = useState<number>(14.599512);
   const [lng, setLng] = useState<number>(120.984222);
   const [radius, setRadius] = useState<number>(100);
-  const [accuracyLimit, setAccuracyLimit] = useState<number>(50);
+  const [accuracyLimit, setAccuracyLimit] = useState<number>(150);
   const [targetHours, setTargetHours] = useState<string>('486.0');
   const [dailyHours, setDailyHours] = useState<string>('8.0');
   const [lunchMins, setLunchMins] = useState<number>(60);
@@ -296,15 +296,15 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="range"
                   min={10}
-                  max={100}
-                  step={5}
+                  max={300}
+                  step={10}
                   value={accuracyLimit}
                   disabled={isLocked}
                   onChange={(e) => setAccuracyLimit(Number(e.target.value))}
                   className={`w-full h-6 accent-emerald-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 />
                 <p className="text-[11px] text-slate-400">
-                  Weak device signals with accuracy worse than {accuracyLimit}m will be prompted to calibrate before punch in.
+                  Signals with accuracy worse than {accuracyLimit}m will be rejected. (Tip: Use 50m for outdoor mobile GPS, 150m for indoor Wi-Fi / desktop testing).
                 </p>
               </div>
             </div>

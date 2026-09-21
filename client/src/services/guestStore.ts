@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: OjtSetting = {
   workplaceLatitude: 14.599512,
   workplaceLongitude: 120.984222,
   geofenceRadiusMeters: 100,
-  gpsAccuracyThreshold: 50,
+  gpsAccuracyThreshold: 150,
   targetTotalHours: 486.0,
   dailyScheduleHours: 8.0,
   defaultLunchMinutes: 60

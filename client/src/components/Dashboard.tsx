@@ -72,7 +72,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
   const workplaceLat = status?.settings?.workplaceLatitude ?? 14.599512;
   const workplaceLng = status?.settings?.workplaceLongitude ?? 120.984222;
   const allowedRadius = status?.settings?.geofenceRadiusMeters ?? 100;
-  const accuracyLimit = status?.settings?.gpsAccuracyThreshold ?? 50;
+  const accuracyLimit = status?.settings?.gpsAccuracyThreshold ?? 150;
 
   const currentDistance = (geo.latitude !== null && geo.longitude !== null)
     ? calculateDistanceMeters(geo.latitude, geo.longitude, workplaceLat, workplaceLng)
@@ -297,12 +297,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToSettings }) =>
 
         {/* GPS Warning if accuracy is low */}
         {geo.accuracy !== null && !isGpsAccurate && (
-          <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-300">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>
-              GPS reading accuracy ({geo.accuracy}m) is weaker than required threshold ({accuracyLimit}m).
-              Please step near a window or move outdoors for accurate verification.
+          <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-300 animate-fade-in">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+              <div>
+                <p className="font-semibold text-amber-200">
+                  GPS signal accuracy ({geo.accuracy}m) exceeds required gate (&le; {accuracyLimit}m)
+                </p>
+                <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
+                  Desktop browsers & indoor Wi-Fi usually report ~100m because PCs lack satellite GPS hardware.
+                </p>
+              </div>
             </div>
+
+            {!status?.settings?.isLocked ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const relaxedLimit = Math.max(geo.accuracy! + 20, 150);
+                  try {
+                    const updated = await api.settings.update({ gpsAccuracyThreshold: relaxedLimit });
+                    setStatus(prev => prev ? { ...prev, settings: updated } : null);
+                    setCalibrationSuccess(`GPS accuracy gate adjusted to ${relaxedLimit}m for this device!`);
+                    setTimeout(() => setCalibrationSuccess(null), 4000);
+                  } catch (e: any) {
+                    setActionError(e.message || 'Failed to adjust accuracy threshold');
+                  }
+                }}
+                className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Allow {Math.max(geo.accuracy + 20, 150)}m Gate</span>
+              </button>
+            ) : (
+              <div className="text-[11px] text-slate-400 italic shrink-0">
+                Gate locked by {status?.settings?.managedBySupervisorName || 'supervisor'}.
+              </div>
+            )}
           </div>
         )}
 

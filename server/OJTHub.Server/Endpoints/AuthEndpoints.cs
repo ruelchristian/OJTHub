@@ -53,7 +53,7 @@ public static class AuthEndpoints
                     WorkplaceLatitude = 14.599512m,
                     WorkplaceLongitude = 120.984222m,
                     GeofenceRadiusMeters = 100,
-                    GpsAccuracyThreshold = 50,
+                    GpsAccuracyThreshold = 150,
                     TargetTotalHours = 486.0m,
                     DailyScheduleHours = 8.0m,
                     DefaultLunchMinutes = 60

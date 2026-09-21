@@ -26,7 +26,7 @@ public class OjtSetting
 
     public int GeofenceRadiusMeters { get; set; } = 100;
 
-    public int GpsAccuracyThreshold { get; set; } = 50;
+    public int GpsAccuracyThreshold { get; set; } = 150;
 
     [Column(TypeName = "decimal(5,1)")]
     public decimal TargetTotalHours { get; set; } = 486.0m;
