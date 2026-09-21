@@ -96,34 +96,8 @@ builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 
 var app = builder.Build();
 
-// Ensure Database Schema Created automatically with retry resilience
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<OJTHubDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    for (int attempt = 1; attempt <= 10; attempt++)
-    {
-        try
-        {
-            logger.LogInformation("Attempting database schema verification (attempt {Attempt}/10)...", attempt);
-            db.Database.EnsureCreated();
-            logger.LogInformation("Database connected and schema initialized successfully.");
-            break;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Database connection attempt {Attempt} failed. Retrying in 3 seconds...", attempt);
-            if (attempt == 10)
-            {
-                logger.LogError(ex, "Could not initialize database after 10 attempts. Continuing web server startup.");
-            }
-            else
-            {
-                System.Threading.Thread.Sleep(3000);
-            }
-        }
-    }
-}
+// Apply EF Core database migrations with resilience and legacy bridge support
+await app.ApplyDatabaseMigrationsAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
