@@ -15,7 +15,7 @@ RUN npm run build
 # ---------------------------------------------------------
 # Stage 2: Build Backend (.NET 10 Web API)
 # ---------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS backend-builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-builder
 WORKDIR /src
 
 # Copy csproj and restore dependencies
@@ -30,7 +30,7 @@ RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 # ---------------------------------------------------------
 # Stage 3: Final Unified Runtime
 # ---------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 # Copy published .NET backend

@@ -37,12 +37,13 @@ var rawConn = Environment.GetEnvironmentVariable("DATABASE_URL")
 
 static string ParseConnectionString(string connStr)
 {
-    if (connStr.StartsWith("postgres://") || connStr.StartsWith("postgresql://"))
+    if (connStr.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+        connStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
     {
         var uri = new Uri(connStr);
         var userInfo = uri.UserInfo.Split(':');
-        var user = userInfo[0];
-        var pass = userInfo.Length > 1 ? userInfo[1] : "";
+        var user = Uri.UnescapeDataString(userInfo[0]);
+        var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
         var host = uri.Host;
         var port = uri.Port > 0 ? uri.Port : 5432;
         var db = uri.AbsolutePath.TrimStart('/');
@@ -95,11 +96,33 @@ builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 
 var app = builder.Build();
 
-// Ensure Database Schema Created automatically
+// Ensure Database Schema Created automatically with retry resilience
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OJTHubDbContext>();
-    db.Database.EnsureCreated();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    for (int attempt = 1; attempt <= 10; attempt++)
+    {
+        try
+        {
+            logger.LogInformation("Attempting database schema verification (attempt {Attempt}/10)...", attempt);
+            db.Database.EnsureCreated();
+            logger.LogInformation("Database connected and schema initialized successfully.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Database connection attempt {Attempt} failed. Retrying in 3 seconds...", attempt);
+            if (attempt == 10)
+            {
+                logger.LogError(ex, "Could not initialize database after 10 attempts. Continuing web server startup.");
+            }
+            else
+            {
+                System.Threading.Thread.Sleep(3000);
+            }
+        }
+    }
 }
 
 // Configure the HTTP request pipeline.
