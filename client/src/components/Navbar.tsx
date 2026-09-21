@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -14,7 +14,9 @@ import {
   User, 
   X, 
   ShieldCheck, 
-  MapPin 
+  MapPin,
+  Download,
+  Smartphone
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -26,8 +28,40 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpenAuth }) => {
   const { user, isGuest, logout } = useAuth();
   const [accountDrawerOpen, setAccountDrawerOpen] = useState<boolean>(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice?.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } catch (err) {
+      console.warn('Install prompt error:', err);
+    }
+  };
 
   const isSupervisor = user?.role === 'Supervisor';
 
@@ -123,6 +157,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
 
           {/* Desktop User Profile & Actions (Mobile uses bottom navigation Account tab) */}
           <div className="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
+            {installPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                title="Install OJTHub to your device"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Install App</span>
+              </button>
+            )}
+
             {isGuest ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -171,6 +216,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
               </button>
             )}
           </div>
+
+          {/* Mobile Install App Button (Visible in header on mobile when installable) */}
+          {installPrompt && (
+            <button
+              onClick={handleInstallClick}
+              className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+              title="Install OJTHub app"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Install</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -332,6 +389,29 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
                 >
                   <LogIn className="w-4 h-4" />
                   <span>Sign In / Login</span>
+                </button>
+              </div>
+            )}
+
+            {installPrompt && (
+              <div className="bg-gradient-to-r from-sky-950/40 via-indigo-950/30 to-slate-900 border border-sky-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Install OJTHub</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Add to home screen for fullscreen app access.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleInstallClick();
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow transition-all shrink-0 cursor-pointer active:scale-95"
+                >
+                  Install
                 </button>
               </div>
             )}
