@@ -24,13 +24,21 @@ public static class AuthEndpoints
                 return Results.Conflict(new { message = "A user with this email already exists." });
             }
 
+            var role = string.Equals(req.Role, "Supervisor", StringComparison.OrdinalIgnoreCase) ? "Supervisor" : "Trainee";
+            string? supervisorCode = null;
+            if (role == "Supervisor")
+            {
+                supervisorCode = await GenerateUniqueSupervisorCodeAsync(db);
+            }
+
             var user = new User
             {
                 Email = emailNormalized,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
                 FullName = req.FullName.Trim(),
                 StudentId = req.StudentId?.Trim(),
-                Role = string.Equals(req.Role, "Supervisor", StringComparison.OrdinalIgnoreCase) ? "Supervisor" : "Trainee"
+                Role = role,
+                SupervisorCode = supervisorCode
             };
 
             db.Users.Add(user);
@@ -56,7 +64,7 @@ public static class AuthEndpoints
             await db.SaveChangesAsync();
 
             var token = tokenService.GenerateToken(user);
-            var userDto = new UserDto(user.Id, user.Email, user.FullName, user.StudentId, user.Role);
+            var userDto = BuildUserDto(user);
 
             return Results.Ok(new AuthResponse(token, userDto));
         })
@@ -72,15 +80,24 @@ public static class AuthEndpoints
             }
 
             var emailNormalized = req.Email.Trim().ToLowerInvariant();
-            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == emailNormalized);
+            var user = await db.Users
+                .Include(u => u.Supervisor)
+                .FirstOrDefaultAsync(u => u.Email == emailNormalized);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             {
                 return Results.Unauthorized();
             }
 
+            // Ensure existing supervisors have an invite code
+            if (user.Role == "Supervisor" && string.IsNullOrEmpty(user.SupervisorCode))
+            {
+                user.SupervisorCode = await GenerateUniqueSupervisorCodeAsync(db);
+                await db.SaveChangesAsync();
+            }
+
             var token = tokenService.GenerateToken(user);
-            var userDto = new UserDto(user.Id, user.Email, user.FullName, user.StudentId, user.Role);
+            var userDto = BuildUserDto(user);
 
             return Results.Ok(new AuthResponse(token, userDto));
         })
@@ -96,10 +113,19 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            var user = await db.Users.FindAsync(userId);
+            var user = await db.Users
+                .Include(u => u.Supervisor)
+                .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return Results.NotFound();
 
-            return Results.Ok(new UserDto(user.Id, user.Email, user.FullName, user.StudentId, user.Role));
+            // Ensure supervisors always have an invite code available
+            if (user.Role == "Supervisor" && string.IsNullOrEmpty(user.SupervisorCode))
+            {
+                user.SupervisorCode = await GenerateUniqueSupervisorCodeAsync(db);
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok(BuildUserDto(user));
         })
         .RequireAuthorization()
         .WithName("GetCurrentUser")
@@ -107,5 +133,28 @@ public static class AuthEndpoints
         .WithDescription("Returns authenticated user profile");
 
         return group;
+    }
+
+    private static UserDto BuildUserDto(User user) =>
+        new(
+            user.Id,
+            user.Email,
+            user.FullName,
+            user.StudentId,
+            user.Role,
+            user.SupervisorCode,
+            user.SupervisorId,
+            user.Supervisor?.FullName
+        );
+
+    private static async Task<string> GenerateUniqueSupervisorCodeAsync(OJTHubDbContext db)
+    {
+        string code;
+        do
+        {
+            code = SupervisorCodeGenerator.GenerateCode();
+        } while (await db.Users.AnyAsync(u => u.SupervisorCode == code));
+
+        return code;
     }
 }

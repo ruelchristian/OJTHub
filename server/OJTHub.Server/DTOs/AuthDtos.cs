@@ -18,7 +18,19 @@ public record UserDto(
     string Email,
     string FullName,
     string? StudentId,
-    string Role
+    string Role,
+    string? SupervisorCode = null,
+    Guid? SupervisorId = null,
+    string? SupervisorName = null
+);
+
+public record LinkSupervisorRequest(
+    string Code
+);
+
+public record SupervisorCodeResponse(
+    string Code,
+    string FullName
 );
 
 public record AuthResponse(

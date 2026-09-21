@@ -329,6 +329,33 @@ export const api = {
   },
 
   supervisor: {
+    async getMyCode(): Promise<{ code: string; fullName: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/my-code`, {
+        headers: { ...getAuthHeader() }
+      });
+      return handleResponse<{ code: string; fullName: string }>(res);
+    },
+
+    async linkCode(code: string): Promise<{ message: string; supervisorId: string; supervisorName: string; companyName: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/link-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ code })
+      });
+      return handleResponse<{ message: string; supervisorId: string; supervisorName: string; companyName: string }>(res);
+    },
+
+    async unlink(): Promise<{ message: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/unlink`, {
+        method: 'POST',
+        headers: { ...getAuthHeader() }
+      });
+      return handleResponse<{ message: string }>(res);
+    },
+
     async getTrainees(): Promise<TraineeSummary[]> {
       const res = await fetch(`${API_BASE}/supervisor/trainees`, {
         headers: { ...getAuthHeader() }
@@ -346,6 +373,30 @@ export const api = {
       return handleResponse<AttendanceRecord[]>(res);
     },
 
+    async updateTraineeSettings(traineeId: string, data: Partial<OjtSetting>): Promise<{ message: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/trainees/${traineeId}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(data)
+      });
+      return handleResponse<{ message: string }>(res);
+    },
+
+    async broadcastSettings(data: Partial<OjtSetting>): Promise<{ message: string; count: number }> {
+      const res = await fetch(`${API_BASE}/supervisor/broadcast-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(data)
+      });
+      return handleResponse<{ message: string; count: number }>(res);
+    },
+
     async verify(attendanceRecordId: string, remark?: string): Promise<{ message: string; recordId: string }> {
       const res = await fetch(`${API_BASE}/supervisor/verify`, {
         method: 'POST',
@@ -356,6 +407,18 @@ export const api = {
         body: JSON.stringify({ attendanceRecordId, remark })
       });
       return handleResponse<{ message: string; recordId: string }>(res);
+    },
+
+    async batchVerify(traineeId: string, onlyWithinGeofence: boolean = true, defaultRemark: string = 'Verified by Supervisor'): Promise<{ message: string; count: number }> {
+      const res = await fetch(`${API_BASE}/supervisor/verify-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ traineeId, onlyWithinGeofence, defaultRemark })
+      });
+      return handleResponse<{ message: string; count: number }>(res);
     }
   },
 

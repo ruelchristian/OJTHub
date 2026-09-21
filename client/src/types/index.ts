@@ -6,6 +6,9 @@ export interface User {
   fullName: string;
   studentId?: string;
   role: UserRole;
+  supervisorCode?: string;
+  supervisorId?: string;
+  supervisorName?: string;
 }
 
 export interface AuthResponse {
@@ -23,6 +26,9 @@ export interface OjtSetting {
   targetTotalHours: number;
   dailyScheduleHours: number;
   defaultLunchMinutes: number;
+  isLocked?: boolean;
+  managedBySupervisorName?: string;
+  supervisorId?: string;
 }
 
 export interface AttendanceRecord {
@@ -95,4 +101,5 @@ export interface TraineeSummary {
   renderedHours: number;
   completionPercentage: number;
   pendingVerificationCount: number;
+  settings?: OjtSetting;
 }

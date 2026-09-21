@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { WorkplaceMapPicker } from './WorkplaceMapPicker';
-import { Settings, MapPin, Target, Check, Save, ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { Settings, MapPin, Target, Check, Save, ChevronDown, ChevronUp, Layers, ShieldAlert, Link as LinkIcon, Unlink, Lock } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
+  const { user, isGuest, refreshUser } = useAuth();
   const geo = useGeolocation();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -20,29 +22,40 @@ export const SettingsView: React.FC = () => {
   const [dailyHours, setDailyHours] = useState<string>('8.0');
   const [lunchMins, setLunchMins] = useState<number>(60);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const s = await api.settings.get();
-        setCompanyName(s.companyName);
-        setLat(s.workplaceLatitude);
-        setLng(s.workplaceLongitude);
-        setRadius(s.geofenceRadiusMeters);
-        setAccuracyLimit(s.gpsAccuracyThreshold);
-        setTargetHours(s.targetTotalHours.toString());
-        setDailyHours(s.dailyScheduleHours.toString());
-        setLunchMins(s.defaultLunchMinutes);
-      } catch (err) {
-        console.error('Failed to load settings', err);
-      } finally {
-        setLoading(false);
-      }
+  // Supervisor Governance state
+  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [supervisorName, setSupervisorName] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string>('');
+  const [linking, setLinking] = useState<boolean>(false);
+  const [linkMessage, setLinkMessage] = useState<string | null>(null);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    try {
+      const s = await api.settings.get();
+      setCompanyName(s.companyName);
+      setLat(s.workplaceLatitude);
+      setLng(s.workplaceLongitude);
+      setRadius(s.geofenceRadiusMeters);
+      setAccuracyLimit(s.gpsAccuracyThreshold);
+      setTargetHours(s.targetTotalHours.toString());
+      setDailyHours(s.dailyScheduleHours.toString());
+      setLunchMins(s.defaultLunchMinutes);
+      setIsLocked(Boolean(s.isLocked || (user && user.role === 'Trainee' && user.supervisorId)));
+      setSupervisorName(s.managedBySupervisorName || user?.supervisorName || null);
+    } catch (err) {
+      console.error('Failed to load settings', err);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, [user]);
 
   const handleUseCurrentLocation = () => {
+    if (isLocked) return;
     if (geo.latitude !== null && geo.longitude !== null) {
       setLat(geo.latitude);
       setLng(geo.longitude);
@@ -52,12 +65,50 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleMapLocationChange = (newLat: number, newLng: number) => {
+    if (isLocked) return;
     setLat(newLat);
     setLng(newLng);
   };
 
+  const handleLinkSupervisor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCode.trim()) return;
+
+    setLinking(true);
+    setLinkMessage(null);
+    try {
+      const res = await api.supervisor.linkCode(inviteCode.trim());
+      setLinkMessage(res.message);
+      setInviteCode('');
+      await refreshUser();
+      await loadSettings();
+    } catch (err: any) {
+      alert(err.message || 'Failed to link supervisor.');
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleUnlinkSupervisor = async () => {
+    if (!confirm('Are you sure you want to unlink from your supervisor? Your settings will become editable again.')) {
+      return;
+    }
+    try {
+      await api.supervisor.unlink();
+      await refreshUser();
+      await loadSettings();
+      alert('Successfully unlinked from supervisor.');
+    } catch (err: any) {
+      alert(err.message || 'Failed to unlink from supervisor.');
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) {
+      alert('Settings are locked by your supervisor.');
+      return;
+    }
     setSaving(true);
     setSavedSuccess(false);
     try {
@@ -93,6 +144,74 @@ export const SettingsView: React.FC = () => {
         </p>
       </div>
 
+      {/* Supervisor Governance Lock Banner (When assigned) */}
+      {isLocked && (
+        <div className="bg-amber-950/40 border border-amber-800/60 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-amber-200 animate-fade-in shadow-md">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                <span>Settings Locked & Governed by Supervisor</span>
+                <span className="px-2 py-0.5 text-[10px] uppercase font-mono tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-bold">
+                  Read Only
+                </span>
+              </h4>
+              <p className="text-xs text-amber-200/90 leading-relaxed">
+                Your assigned company workplace coordinates, geofence radius, and required total hours are officially governed by: <strong className="text-white font-semibold">{supervisorName || 'Assigned Supervisor'}</strong>.
+              </p>
+              <p className="text-[11px] text-amber-300/70">
+                Trainees cannot alter coordinates or hours while assigned to a supervisor. Contact your supervisor to adjust these parameters.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleUnlinkSupervisor}
+            className="self-start sm:self-center px-3.5 py-1.5 rounded-xl border border-amber-700/60 text-amber-300 hover:bg-amber-900/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            title="Unlink from supervisor"
+          >
+            <Unlink className="w-3.5 h-3.5" />
+            <span>Unlink Supervisor</span>
+          </button>
+        </div>
+      )}
+
+      {/* Trainee Invite Code Link Section (When NOT assigned & logged in) */}
+      {!isLocked && user && user.role === 'Trainee' && !isGuest && (
+        <div className="bg-slate-900 border border-sky-800/50 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg space-y-3">
+          <div className="flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-sky-400" />
+            <h3 className="text-sm font-bold text-slate-100">Connect to Your Supervisor / Coordinator</h3>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Have an invite code from your company supervisor or academic coordinator? Enter their 6-character code (e.g., <code className="text-sky-300 font-mono font-bold bg-slate-800 px-1.5 py-0.5 rounded">OJT-XXXX</code>) to link your timesheet directly to their verification portal.
+          </p>
+          <form onSubmit={handleLinkSupervisor} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              placeholder="e.g. OJT-89AB"
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-sky-300 tracking-wider uppercase focus:outline-none focus:border-sky-500 w-full sm:w-64"
+              maxLength={15}
+            />
+            <button
+              type="submit"
+              disabled={linking || !inviteCode.trim()}
+              className="bg-sky-600 hover:bg-sky-500 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 min-h-[38px]"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              <span>{linking ? 'Linking...' : 'Connect to Supervisor'}</span>
+            </button>
+          </form>
+          {linkMessage && (
+            <p className="text-xs text-emerald-400 font-medium animate-fade-in flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" /> {linkMessage}
+            </p>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
         
         {/* Establishment & Interactive Visual Map Picker */}
@@ -114,8 +233,9 @@ export const SettingsView: React.FC = () => {
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
+                disabled={isLocked}
                 placeholder="e.g. Acme Corp Philippines / IT Department"
-                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-medium"
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-medium ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
             </div>
@@ -124,18 +244,22 @@ export const SettingsView: React.FC = () => {
             <div>
               <label className="block text-slate-400 font-medium text-xs mb-1.5 flex flex-col xs:flex-row xs:items-center justify-between gap-0.5">
                 <span>Pinpoint Workplace on Map</span>
-                <span className="text-[10px] sm:text-[11px] text-slate-400">Search address, click map, or drag the pin</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-400">
+                  {isLocked ? '📍 Location locked by supervisor' : 'Search address, click map, or drag the pin'}
+                </span>
               </label>
-              <WorkplaceMapPicker
-                latitude={lat}
-                longitude={lng}
-                radiusMeters={radius}
-                deviceLatitude={geo.latitude}
-                deviceLongitude={geo.longitude}
-                onChange={handleMapLocationChange}
-                onUseCurrentLocation={handleUseCurrentLocation}
-                height="320px"
-              />
+              <div className={isLocked ? 'pointer-events-none opacity-80' : ''}>
+                <WorkplaceMapPicker
+                  latitude={lat}
+                  longitude={lng}
+                  radiusMeters={radius}
+                  deviceLatitude={geo.latitude}
+                  deviceLongitude={geo.longitude}
+                  onChange={handleMapLocationChange}
+                  onUseCurrentLocation={handleUseCurrentLocation}
+                  height="320px"
+                />
+              </div>
             </div>
 
             {/* Radius and Accuracy Settings */}
@@ -153,8 +277,9 @@ export const SettingsView: React.FC = () => {
                   max={500}
                   step={10}
                   value={radius}
+                  disabled={isLocked}
                   onChange={(e) => setRadius(Number(e.target.value))}
-                  className="w-full h-6 accent-sky-500 cursor-pointer"
+                  className={`w-full h-6 accent-sky-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 />
                 <p className="text-[11px] text-slate-400">
                   Trainees within this circular boundary are verified as present at the host establishment.
@@ -174,8 +299,9 @@ export const SettingsView: React.FC = () => {
                   max={100}
                   step={5}
                   value={accuracyLimit}
+                  disabled={isLocked}
                   onChange={(e) => setAccuracyLimit(Number(e.target.value))}
-                  className="w-full h-6 accent-emerald-500 cursor-pointer"
+                  className={`w-full h-6 accent-emerald-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 />
                 <p className="text-[11px] text-slate-400">
                   Weak device signals with accuracy worse than {accuracyLimit}m will be prompted to calibrate before punch in.
@@ -203,8 +329,9 @@ export const SettingsView: React.FC = () => {
                       type="number"
                       step="0.000001"
                       value={lat}
+                      disabled={isLocked}
                       onChange={(e) => setLat(parseFloat(e.target.value) || 0)}
-                      className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
+                      className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     />
                   </div>
                   <div>
@@ -213,8 +340,9 @@ export const SettingsView: React.FC = () => {
                       type="number"
                       step="0.000001"
                       value={lng}
+                      disabled={isLocked}
                       onChange={(e) => setLng(parseFloat(e.target.value) || 0)}
-                      className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
+                      className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-mono ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     />
                   </div>
                 </div>
@@ -237,8 +365,9 @@ export const SettingsView: React.FC = () => {
                 type="number"
                 step="1"
                 value={targetHours}
+                disabled={isLocked}
                 onChange={(e) => setTargetHours(e.target.value)}
-                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-bold"
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 font-bold ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">e.g., 300, 486, or 600 hours</span>
@@ -250,8 +379,9 @@ export const SettingsView: React.FC = () => {
                 type="number"
                 step="0.5"
                 value={dailyHours}
+                disabled={isLocked}
                 onChange={(e) => setDailyHours(e.target.value)}
-                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">Standard shift length (e.g. 8.0 hrs)</span>
@@ -263,8 +393,9 @@ export const SettingsView: React.FC = () => {
                 type="number"
                 step="15"
                 value={lunchMins}
+                disabled={isLocked}
                 onChange={(e) => setLunchMins(Number(e.target.value))}
-                className="w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500"
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
               <span className="text-[10px] text-slate-400 mt-0.5">Deducted for shifts &gt; 4 hours</span>
@@ -279,14 +410,21 @@ export const SettingsView: React.FC = () => {
               <Check className="w-4 h-4" /> Configuration saved successfully!
             </span>
           )}
-          <button
-            type="submit"
-            disabled={saving || loading}
-            className="w-full sm:w-auto min-h-[46px] px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-          >
-            <Save className="w-4 h-4" />
-            <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
-          </button>
+          {isLocked ? (
+            <div className="flex items-center gap-2 text-xs text-amber-300 font-medium px-4 py-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40">
+              <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Settings Locked by Supervisor</span>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={saving || loading}
+              className="w-full sm:w-auto min-h-[46px] px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
+            </button>
+          )}
         </div>
       </form>
     </div>

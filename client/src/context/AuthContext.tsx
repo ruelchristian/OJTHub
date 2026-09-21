@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (email: string, pass: string, name: string, studentId?: string, role?: string) => Promise<void>;
   continueAsGuest: () => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,8 +88,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsGuest(false);
   };
 
+  const refreshUser = async () => {
+    if (token) {
+      try {
+        const profile = await api.auth.me();
+        setUser(profile);
+      } catch (err) {
+        console.warn('Failed to refresh user profile', err);
+      }
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, isGuest, login, register, continueAsGuest, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, isGuest, login, register, continueAsGuest, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

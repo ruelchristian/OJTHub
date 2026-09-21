@@ -23,6 +23,7 @@ public class OJTHubDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.Email).IsUnique();
+            entity.HasIndex(u => u.SupervisorCode).IsUnique();
 
             entity.HasOne(u => u.Supervisor)
                 .WithMany()

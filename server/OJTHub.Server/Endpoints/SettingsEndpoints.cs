@@ -15,6 +15,10 @@ public static class SettingsEndpoints
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
 
+            var user = await db.Users
+                .Include(u => u.Supervisor)
+                .FirstOrDefaultAsync(u => u.Id == userId.Value);
+
             var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
             if (setting == null)
             {
@@ -23,6 +27,9 @@ public static class SettingsEndpoints
                 db.OjtSettings.Add(setting);
                 await db.SaveChangesAsync();
             }
+
+            var isLocked = user != null && user.Role == "Trainee" && user.SupervisorId != null;
+            var supervisorName = user?.Supervisor?.FullName;
 
             return Results.Ok(new OjtSettingDto(
                 setting.Id,
@@ -33,7 +40,10 @@ public static class SettingsEndpoints
                 setting.GpsAccuracyThreshold,
                 setting.TargetTotalHours,
                 setting.DailyScheduleHours,
-                setting.DefaultLunchMinutes
+                setting.DefaultLunchMinutes,
+                isLocked,
+                supervisorName,
+                user?.SupervisorId
             ));
         })
         .RequireAuthorization()
@@ -44,6 +54,19 @@ public static class SettingsEndpoints
         {
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
+
+            var user = await db.Users
+                .Include(u => u.Supervisor)
+                .FirstOrDefaultAsync(u => u.Id == userId.Value);
+
+            if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
+            {
+                var supervisorName = user.Supervisor?.FullName ?? "your supervisor";
+                return Results.BadRequest(new
+                {
+                    message = $"Configuration is managed and locked by {supervisorName}. Please contact your supervisor to update your assigned workplace location or hours."
+                });
+            }
 
             var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
             if (setting == null)
@@ -73,7 +96,10 @@ public static class SettingsEndpoints
                 setting.GpsAccuracyThreshold,
                 setting.TargetTotalHours,
                 setting.DailyScheduleHours,
-                setting.DefaultLunchMinutes
+                setting.DefaultLunchMinutes,
+                false,
+                null,
+                null
             ));
         })
         .RequireAuthorization()

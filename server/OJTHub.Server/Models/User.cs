@@ -32,6 +32,9 @@ public class User
     [ForeignKey(nameof(SupervisorId))]
     public User? Supervisor { get; set; }
 
+    [MaxLength(20)]
+    public string? SupervisorCode { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Navigation properties

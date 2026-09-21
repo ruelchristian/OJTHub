@@ -9,7 +9,10 @@ public record OjtSettingDto(
     int GpsAccuracyThreshold,
     decimal TargetTotalHours,
     decimal DailyScheduleHours,
-    int DefaultLunchMinutes
+    int DefaultLunchMinutes,
+    bool IsLocked = false,
+    string? ManagedBySupervisorName = null,
+    Guid? SupervisorId = null
 );
 
 public record UpdateOjtSettingRequest(

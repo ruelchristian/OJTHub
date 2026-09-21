@@ -44,6 +44,6 @@ public class TokenServiceTests
 
         // Assert
         Assert.IsFalse(string.IsNullOrWhiteSpace(token), "Generated JWT token must not be null or whitespace.");
-        Assert.AreEqual(3, token.Split('.').Length, "JWT token must contain 3 dot-separated segments (header, payload, signature).");
+        Assert.HasCount(3, token.Split('.'), "JWT token must contain 3 dot-separated segments (header, payload, signature).");
     }
 }
