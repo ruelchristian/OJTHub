@@ -4,6 +4,8 @@
 dist/
 build/
 out/
+dev-dist/
+client/dev-dist/
 
 ## Visual Studio / VS Code / JetBrains
 .vs/
