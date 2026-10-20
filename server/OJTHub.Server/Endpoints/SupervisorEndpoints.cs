@@ -33,7 +33,9 @@ public static class SupervisorEndpoints
         OjtSettingDto? Settings = null,
         bool IsOnDuty = false,
         DateTimeOffset? ActiveShiftStartedAt = null,
-        string TodayStatus = "NotStarted"
+        string TodayStatus = "NotStarted",
+        string? SchoolName = null,
+        string? Department = null
     );
 
     public static RouteGroupBuilder MapSupervisorEndpoints(this RouteGroupBuilder group)
@@ -200,7 +202,9 @@ public static class SupervisorEndpoints
                     settingDto,
                     isOnDuty,
                     activeShift?.TimeIn,
-                    todayStatus
+                    todayStatus,
+                    t.SchoolName,
+                    t.Department
                 );
             }).ToList();
 

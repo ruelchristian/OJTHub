@@ -26,7 +26,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpenAuth }) => {
-  const { user, isGuest, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [accountDrawerOpen, setAccountDrawerOpen] = useState<boolean>(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const location = useLocation();
@@ -168,20 +168,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
               </button>
             )}
 
-            {isGuest ? (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  Guest Mode
-                </span>
-                <button
-                  onClick={onOpenAuth}
-                  className="min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Login</span>
-                </button>
-              </div>
-            ) : user ? (
+            {user ? (
               <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <button
                   onClick={() => setAccountDrawerOpen(true)}
@@ -341,6 +328,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
                       {user.studentId && (
                         <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-700 text-slate-300">
                           ID: {user.studentId}
+                        </span>
+                      )}
+                      {user.schoolName && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                          {user.schoolName}
                         </span>
                       )}
                     </div>

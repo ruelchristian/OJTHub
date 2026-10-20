@@ -44,6 +44,7 @@ public static class DatabaseMigrationExtensions
                     }
 
                     await EnsurePerimeterLogsSchemaAsync(db, logger);
+                    await EnsureSchoolSchemaAndSampleDataAsync(db, logger);
                 }
                 else
                 {
@@ -164,6 +165,141 @@ public static class DatabaseMigrationExtensions
         catch (Exception ex)
         {
             logger.LogWarning(ex, "PerimeterLogs schema verification notice: {Message}", ex.Message);
+        }
+    }
+
+    private static async Task EnsureSchoolSchemaAndSampleDataAsync(OJTHubDbContext db, ILogger logger)
+    {
+        try
+        {
+            if (db.Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+                    ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""SchoolName"" character varying(150);
+                    ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Department"" character varying(100);
+                ");
+            }
+
+            // Seed sample teacher and student accounts if they don't already exist
+            var teacherEmail = "teacher@ojthub.com";
+            var teacher = await db.Users.FirstOrDefaultAsync(u => u.Email == teacherEmail);
+            if (teacher == null)
+            {
+                teacher = new OJTHub.Server.Models.User
+                {
+                    Email = teacherEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                    FullName = "Prof. Noel Montecillo",
+                    Role = "Supervisor",
+                    SchoolName = "ICCT Colleges - College of Computer Studies",
+                    Department = "LFCA411M179",
+                    SupervisorCode = "ICCT-2026",
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+                db.Users.Add(teacher);
+                await db.SaveChangesAsync();
+                logger.LogInformation("Sample Teacher account created: teacher@ojthub.com (Code: ICCT-2026)");
+            }
+            else
+            {
+                teacher.SupervisorCode = "ICCT-2026";
+                teacher.SchoolName ??= "ICCT Colleges - College of Computer Studies";
+                teacher.Department ??= "LFCA411M179";
+                await db.SaveChangesAsync();
+            }
+
+            var studentEmail = "student@ojthub.com";
+            var student = await db.Users.FirstOrDefaultAsync(u => u.Email == studentEmail);
+            if (student == null)
+            {
+                student = new OJTHub.Server.Models.User
+                {
+                    Email = studentEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                    FullName = "Ruel Christian Umel",
+                    StudentId = "2023-10492",
+                    Role = "Trainee",
+                    SchoolName = "ICCT Colleges - College of Computer Studies",
+                    Department = "LFCA411M179",
+                    SupervisorId = teacher.Id,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+                db.Users.Add(student);
+                await db.SaveChangesAsync();
+
+                // Add OJT Settings for student
+                var settings = new OJTHub.Server.Models.OjtSetting
+                {
+                    UserId = student.Id,
+                    CompanyName = "DevCore Solutions Inc. (Manila)",
+                    WorkplaceLatitude = 14.599512m,
+                    WorkplaceLongitude = 120.984222m,
+                    GeofenceRadiusMeters = 100,
+                    GpsAccuracyThreshold = 150,
+                    TargetTotalHours = 486.0m,
+                    DailyScheduleHours = 8.0m,
+                    DefaultLunchMinutes = 60,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                db.OjtSettings.Add(settings);
+
+                // Add sample verified attendance shifts (40 hours across 5 days)
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                for (int i = 5; i >= 1; i--)
+                {
+                    var shiftDate = today.AddDays(-i);
+                    var timeIn = new DateTimeOffset(shiftDate.Year, shiftDate.Month, shiftDate.Day, 8, 0, 0, TimeSpan.FromHours(8));
+                    var timeOut = timeIn.AddHours(9); // 8:00 AM - 5:00 PM with 1 hr lunch = 8.0 hrs
+                    db.AttendanceRecords.Add(new OJTHub.Server.Models.AttendanceRecord
+                    {
+                        UserId = student.Id,
+                        Date = shiftDate,
+                        TimeIn = timeIn,
+                        TimeInLatitude = 14.599512m,
+                        TimeInLongitude = 120.984222m,
+                        TimeInDistance = 12.5m,
+                        TimeInGpsAccuracy = 15.0m,
+                        TimeInWithinGeofence = true,
+                        TimeOut = timeOut,
+                        TimeOutLatitude = 14.599512m,
+                        TimeOutLongitude = 120.984222m,
+                        TimeOutDistance = 14.2m,
+                        TimeOutGpsAccuracy = 18.0m,
+                        TimeOutWithinGeofence = true,
+                        LunchBreakMinutes = 60,
+                        NetRenderedHours = 8.00m,
+                        IsVerified = true,
+                        VerifiedAt = DateTimeOffset.UtcNow,
+                        VerifiedBySupervisorId = teacher.Id,
+                        SupervisorRemark = "Verified on-site shift compliant with geofence perimeter"
+                    });
+
+                    db.ActivityLogs.Add(new OJTHub.Server.Models.ActivityLog
+                    {
+                        UserId = student.Id,
+                        Date = shiftDate,
+                        TaskTitle = i switch
+                        {
+                            1 => "Implemented REST API endpoints and data validation",
+                            2 => "Configured PostgreSQL database schemas and migrations",
+                            3 => "Developed responsive mobile PWA layout with Tailwind CSS",
+                            4 => "Conducted GPS geofence boundary testing and accuracy calibration",
+                            _ => "Attended internship orientation and workspace setup"
+                        },
+                        Details = "Successfully completed scheduled sprint tasks under supervisor guidance.",
+                        HoursSpent = 8.0m,
+                        Category = "Development",
+                        CreatedAt = DateTimeOffset.UtcNow
+                    });
+                }
+
+                await db.SaveChangesAsync();
+                logger.LogInformation("Sample Student account created: student@ojthub.com (linked to Teacher ICCT-2026).");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "School schema or sample data seeding notice: {Message}", ex.Message);
         }
     }
 }

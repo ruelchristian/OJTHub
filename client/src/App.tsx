@@ -12,20 +12,20 @@ import { SupervisorPortal } from './components/SupervisorPortal';
 import { AuthModal } from './components/AuthModal';
 
 const SupervisorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isGuest } = useAuth();
-  if (!isGuest && user && user.role !== 'Supervisor') {
+  const { user } = useAuth();
+  if (user && user.role !== 'Supervisor') {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };
 
 const MainLayout: React.FC = () => {
-  const { user, loading, isGuest } = useAuth();
+  const { user, loading } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user && !isGuest) {
+    if (!loading && !user) {
       setAuthModalOpen(true);
     }
   }, [user, loading, isGuest]);

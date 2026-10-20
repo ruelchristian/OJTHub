@@ -26,9 +26,46 @@ public static class AuthEndpoints
 
             var role = string.Equals(req.Role, "Supervisor", StringComparison.OrdinalIgnoreCase) ? "Supervisor" : "Trainee";
             string? supervisorCode = null;
+            Guid? supervisorId = null;
+            string? schoolName = req.SchoolName?.Trim();
+            string? department = req.Department?.Trim();
+
             if (role == "Supervisor")
             {
                 supervisorCode = await GenerateUniqueSupervisorCodeAsync(db);
+                if (string.IsNullOrWhiteSpace(schoolName))
+                {
+                    schoolName = "ICCT Colleges";
+                }
+            }
+            else // Trainee
+            {
+                if (string.IsNullOrWhiteSpace(req.StudentId))
+                {
+                    return Results.BadRequest(new { message = "Student / Trainee ID is required." });
+                }
+
+                if (string.IsNullOrWhiteSpace(req.SupervisorCode))
+                {
+                    return Results.BadRequest(new { message = "Teacher / Supervisor Code is required. Every student must be enrolled under a teacher or school coordinator." });
+                }
+
+                var normalizedCode = req.SupervisorCode.Trim().ToUpperInvariant();
+                var supervisor = await db.Users.FirstOrDefaultAsync(u => u.Role == "Supervisor" && u.SupervisorCode == normalizedCode);
+                if (supervisor == null)
+                {
+                    return Results.BadRequest(new { message = $"No Teacher/Supervisor found with code '{req.SupervisorCode}'. Please check the code provided by your instructor." });
+                }
+
+                supervisorId = supervisor.Id;
+                if (string.IsNullOrWhiteSpace(schoolName))
+                {
+                    schoolName = supervisor.SchoolName ?? "ICCT Colleges";
+                }
+                if (string.IsNullOrWhiteSpace(department))
+                {
+                    department = supervisor.Department;
+                }
             }
 
             var user = new User
@@ -38,7 +75,10 @@ public static class AuthEndpoints
                 FullName = req.FullName.Trim(),
                 StudentId = req.StudentId?.Trim(),
                 Role = role,
-                SupervisorCode = supervisorCode
+                SupervisorCode = supervisorCode,
+                SupervisorId = supervisorId,
+                SchoolName = schoolName,
+                Department = department
             };
 
             db.Users.Add(user);
@@ -144,7 +184,9 @@ public static class AuthEndpoints
             user.Role,
             user.SupervisorCode,
             user.SupervisorId,
-            user.Supervisor?.FullName
+            user.Supervisor?.FullName,
+            user.SchoolName,
+            user.Department
         );
 
     private static async Task<string> GenerateUniqueSupervisorCodeAsync(OJTHubDbContext db)

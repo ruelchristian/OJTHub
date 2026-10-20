@@ -5,7 +5,10 @@ public record RegisterRequest(
     string Password,
     string FullName,
     string? StudentId,
-    string Role
+    string Role,
+    string? SchoolName = null,
+    string? Department = null,
+    string? SupervisorCode = null
 );
 
 public record LoginRequest(
@@ -21,7 +24,9 @@ public record UserDto(
     string Role,
     string? SupervisorCode = null,
     Guid? SupervisorId = null,
-    string? SupervisorName = null
+    string? SupervisorName = null,
+    string? SchoolName = null,
+    string? Department = null
 );
 
 public record LinkSupervisorRequest(

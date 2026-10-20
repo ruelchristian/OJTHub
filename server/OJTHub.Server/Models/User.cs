@@ -35,6 +35,12 @@ public class User
     [MaxLength(20)]
     public string? SupervisorCode { get; set; }
 
+    [MaxLength(150)]
+    public string? SchoolName { get; set; }
+
+    [MaxLength(100)]
+    public string? Department { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Navigation properties

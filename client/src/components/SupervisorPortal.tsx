@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { TraineeSummary, AttendanceRecord } from '../types';
 import { WorkplaceMapPicker } from './WorkplaceMapPicker';
 import { 
@@ -28,6 +29,7 @@ import {
 import { downloadDtrCsv } from '../utils/dtrExport';
 
 export const SupervisorPortal: React.FC = () => {
+  const { user } = useAuth();
   const [trainees, setTrainees] = useState<TraineeSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [myCode, setMyCode] = useState<string>('');
@@ -196,13 +198,28 @@ export const SupervisorPortal: React.FC = () => {
     <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Header Banner */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg">
-        <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
-          <Users className="w-5 h-5 text-sky-400 shrink-0" />
-          <span>Supervisor / Instructor Verification Portal</span>
-        </h2>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Monitor assigned trainee attendance, verify geofenced proximity compliance, and approve official hours.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
+              <Users className="w-5 h-5 text-sky-400 shrink-0" />
+              <span>Teacher & Supervisor OJT Management Console</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Monitor student attendance, verify geofenced proximity compliance, and approve official hours.
+            </p>
+          </div>
+          {user?.schoolName && (
+            <div className="flex items-center gap-2 bg-slate-950/70 border border-sky-500/30 px-3 py-1.5 rounded-xl shrink-0">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div>
+                <div className="text-xs font-bold text-sky-300">{user.schoolName}</div>
+                {user.department && (
+                  <div className="text-[10px] text-slate-400">{user.department}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Supervisor Invite Code Card */}
@@ -467,6 +484,11 @@ export const SupervisorPortal: React.FC = () => {
                       <div className="text-[11px] text-slate-400 truncate">
                         {t.email} {t.studentId ? `• ID: ${t.studentId}` : ''}
                       </div>
+                      {(t.schoolName || t.department) && (
+                        <div className="text-[10px] text-sky-400/90 truncate mt-0.5">
+                          {t.schoolName} {t.department ? `(${t.department})` : ''}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col items-end gap-1 shrink-0">

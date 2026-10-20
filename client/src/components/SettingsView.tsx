@@ -6,7 +6,7 @@ import { WorkplaceMapPicker } from './WorkplaceMapPicker';
 import { Settings, MapPin, Target, Check, Save, ChevronDown, ChevronUp, Layers, ShieldAlert, Link as LinkIcon, Unlink, Lock } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { user, isGuest, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const geo = useGeolocation();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -177,7 +177,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* Trainee Invite Code Link Section (When NOT assigned & logged in) */}
-      {!isLocked && user && user.role === 'Trainee' && !isGuest && (
+      {!isLocked && user && user.role === 'Trainee' && (
         <div className="bg-slate-900 border border-sky-800/50 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg space-y-3">
           <div className="flex items-center gap-2">
             <LinkIcon className="w-4 h-4 text-sky-400" />

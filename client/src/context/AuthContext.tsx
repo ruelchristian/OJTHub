@@ -8,8 +8,16 @@ interface AuthContextType {
   loading: boolean;
   isGuest: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string, studentId?: string, role?: string) => Promise<void>;
-  continueAsGuest: () => void;
+  register: (
+    email: string, 
+    pass: string, 
+    name: string, 
+    studentId?: string, 
+    role?: string,
+    schoolName?: string,
+    department?: string,
+    supervisorCode?: string
+  ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -20,7 +28,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('ojthub_token'));
   const [loading, setLoading] = useState<boolean>(true);
-  const [isGuest, setIsGuest] = useState<boolean>(localStorage.getItem('ojthub_guest') === 'true');
 
   useEffect(() => {
     async function loadUser() {
@@ -28,26 +35,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const profile = await api.auth.me();
           setUser(profile);
-          setIsGuest(false);
         } catch {
           // Token expired or invalid
           localStorage.removeItem('ojthub_token');
           setToken(null);
           setUser(null);
         }
-      } else if (isGuest) {
-        // Guest trainee placeholder profile
-        setUser({
-          id: 'guest-user',
-          email: 'guest@ojthub.local',
-          fullName: 'Guest Trainee',
-          role: 'Trainee'
-        });
       }
       setLoading(false);
     }
     loadUser();
-  }, [token, isGuest]);
+  }, [token]);
 
   const login = async (email: string, pass: string) => {
     const res = await api.auth.login({ email, password: pass });
@@ -55,29 +53,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ojthub_guest');
     setToken(res.token);
     setUser(res.user);
-    setIsGuest(false);
   };
 
-  const register = async (email: string, pass: string, name: string, studentId?: string, role: string = 'Trainee') => {
-    const res = await api.auth.register({ email, password: pass, fullName: name, studentId, role });
+  const register = async (
+    email: string, 
+    pass: string, 
+    name: string, 
+    studentId?: string, 
+    role: string = 'Trainee',
+    schoolName?: string,
+    department?: string,
+    supervisorCode?: string
+  ) => {
+    const res = await api.auth.register({ 
+      email, 
+      password: pass, 
+      fullName: name, 
+      studentId, 
+      role,
+      schoolName,
+      department,
+      supervisorCode 
+    });
     localStorage.setItem('ojthub_token', res.token);
     localStorage.removeItem('ojthub_guest');
     setToken(res.token);
     setUser(res.user);
-    setIsGuest(false);
-  };
-
-  const continueAsGuest = () => {
-    localStorage.setItem('ojthub_guest', 'true');
-    localStorage.removeItem('ojthub_token');
-    setIsGuest(true);
-    setToken(null);
-    setUser({
-      id: 'guest-user',
-      email: 'guest@ojthub.local',
-      fullName: 'Guest Trainee',
-      role: 'Trainee'
-    });
   };
 
   const logout = () => {
@@ -85,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ojthub_guest');
     setToken(null);
     setUser(null);
-    setIsGuest(false);
   };
 
   const refreshUser = async () => {
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isGuest, login, register, continueAsGuest, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isGuest: false, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

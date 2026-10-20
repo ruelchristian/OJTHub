@@ -71,33 +71,38 @@ export const DtrGenerator: React.FC = () => {
 
     // Trainee Details Box
     doc.setLineWidth(0.2);
-    doc.rect(14, 28, 182, 22);
+    doc.rect(14, 28, 182, 26);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('TRAINEE NAME:', 18, 34);
+    doc.text('TRAINEE NAME:', 18, 33);
     doc.setFont('helvetica', 'normal');
-    doc.text(user?.fullName?.toUpperCase() ?? 'TRAINEE NAME', 50, 34);
+    doc.text(user?.fullName?.toUpperCase() ?? 'TRAINEE NAME', 50, 33);
 
     doc.setFont('helvetica', 'bold');
-    doc.text('STUDENT ID:', 130, 34);
+    doc.text('STUDENT ID:', 130, 33);
     doc.setFont('helvetica', 'normal');
-    doc.text(user?.studentId ?? 'N/A', 156, 34);
+    doc.text(user?.studentId ?? 'N/A', 156, 33);
 
     doc.setFont('helvetica', 'bold');
-    doc.text('ESTABLISHMENT:', 18, 40);
+    doc.text('SCHOOL / CAMPUS:', 18, 39);
     doc.setFont('helvetica', 'normal');
-    doc.text(setting?.companyName ?? 'Host Training Establishment', 50, 40);
+    doc.text(user?.schoolName ?? 'ICCT Colleges', 50, 39);
 
     doc.setFont('helvetica', 'bold');
-    doc.text('MONTH / YEAR:', 18, 46);
+    doc.text('ESTABLISHMENT:', 18, 45);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${monthName} ${selectedYear}`, 50, 46);
+    doc.text(setting?.companyName ?? 'Host Training Establishment', 50, 45);
 
     doc.setFont('helvetica', 'bold');
-    doc.text('TARGET HOURS:', 130, 46);
+    doc.text('MONTH / YEAR:', 18, 51);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${setting?.targetTotalHours ?? 486} Hours`, 160, 46);
+    doc.text(`${monthName} ${selectedYear}`, 50, 51);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('TARGET HOURS:', 130, 51);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${setting?.targetTotalHours ?? 486} Hours`, 160, 51);
 
     // Prepare table rows for days of the month
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -142,7 +147,7 @@ export const DtrGenerator: React.FC = () => {
     }
 
     autoTable(doc, {
-      startY: 54,
+      startY: 57,
       head: [['Day', 'Day', 'Time-In', 'Break', 'Time-Out', 'Hours', 'Cumulative', 'Status']],
       body: tableBody,
       styles: {

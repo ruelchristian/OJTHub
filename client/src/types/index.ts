@@ -9,6 +9,8 @@ export interface User {
   supervisorCode?: string;
   supervisorId?: string;
   supervisorName?: string;
+  schoolName?: string;
+  department?: string;
 }
 
 export interface AuthResponse {
@@ -120,4 +122,6 @@ export interface TraineeSummary {
   isOnDuty?: boolean;
   activeShiftStartedAt?: string;
   todayStatus?: 'OnDuty' | 'Completed' | 'NotStarted';
+  schoolName?: string;
+  department?: string;
 }
