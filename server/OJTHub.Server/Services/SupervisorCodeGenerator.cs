@@ -8,7 +8,7 @@ public static partial class SupervisorCodeGenerator
     public const string CodePrefix = "OJT-";
     public const int SuffixLength = 5;
 
-    [GeneratedRegex(@"^OJT-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{5}$")]
+    [GeneratedRegex(@"^(OJT-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{5}|[A-Z0-9\-]{3,25})$")]
     private static partial Regex CodeFormatRegex();
 
     private static readonly Random Random = new();
