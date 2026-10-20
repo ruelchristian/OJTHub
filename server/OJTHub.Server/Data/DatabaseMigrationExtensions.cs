@@ -226,24 +226,10 @@ public static class DatabaseMigrationExtensions
                 };
                 db.Users.Add(student);
                 await db.SaveChangesAsync();
+            }
 
-                // Add OJT Settings for student
-                var settings = new OJTHub.Server.Models.OjtSetting
-                {
-                    UserId = student.Id,
-                    CompanyName = "DevCore Solutions Inc. (Manila)",
-                    WorkplaceLatitude = 14.599512m,
-                    WorkplaceLongitude = 120.984222m,
-                    GeofenceRadiusMeters = 100,
-                    GpsAccuracyThreshold = 150,
-                    TargetTotalHours = 486.0m,
-                    DailyScheduleHours = 8.0m,
-                    DefaultLunchMinutes = 60,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                };
-                db.OjtSettings.Add(settings);
-
-                // Add sample verified attendance shifts (40 hours across 5 days)
+            if (!await db.AttendanceRecords.AnyAsync(a => a.UserId == student.Id))
+            {
                 var today = DateOnly.FromDateTime(DateTime.UtcNow);
                 for (int i = 5; i >= 1; i--)
                 {
@@ -292,9 +278,8 @@ public static class DatabaseMigrationExtensions
                         CreatedAt = DateTimeOffset.UtcNow
                     });
                 }
-
                 await db.SaveChangesAsync();
-                logger.LogInformation("Sample Student account created: student@ojthub.com (linked to Teacher ICCT-2026).");
+                logger.LogInformation("Sample attendance shifts and activity logs seeded for student@ojthub.com.");
             }
         }
         catch (Exception ex)
