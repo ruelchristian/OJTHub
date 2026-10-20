@@ -116,9 +116,27 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowClient");
 
-// Serve frontend static files (React PWA)
+// Serve frontend static files (React PWA) with aggressive anti-cache headers for HTML & SW
+var staticOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var fileName = ctx.File.Name.ToLowerInvariant();
+        if (fileName.EndsWith(".html") || fileName == "sw.js" || fileName == "registersw.js" || fileName.EndsWith(".webmanifest"))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            ctx.Context.Response.Headers["Pragma"] = "no-cache";
+            ctx.Context.Response.Headers["Expires"] = "0";
+        }
+        else if (ctx.Context.Request.Path.StartsWithSegments("/assets"))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";
+        }
+    }
+};
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(staticOptions);
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -138,7 +156,7 @@ app.MapGet("/api/health", () => Results.Ok(new
     version = "1.0.0"
 }));
 
-// Fallback any client routes to React SPA index.html
-app.MapFallbackToFile("index.html");
+// Fallback any client routes to React SPA index.html (with no-cache)
+app.MapFallbackToFile("index.html", staticOptions);
 
 app.Run();
