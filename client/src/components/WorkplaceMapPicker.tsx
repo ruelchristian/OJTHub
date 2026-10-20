@@ -178,7 +178,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
         // Drag end event
         marker.on('dragend', () => {
           const pos = marker.getLatLng();
-          onChange(pos.lat, pos.lng);
+          onChange?.(pos.lat, pos.lng);
           circle.setLatLng(pos);
           fetchAddress(pos.lat, pos.lng);
         });
@@ -187,7 +187,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
         map.on('click', (e: L.LeafletMouseEvent) => {
           marker.setLatLng(e.latlng);
           circle.setLatLng(e.latlng);
-          onChange(e.latlng.lat, e.latlng.lng);
+          onChange?.(e.latlng.lat, e.latlng.lng);
           fetchAddress(e.latlng.lat, e.latlng.lng);
         });
       }
@@ -269,7 +269,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
   const handleSelectPlace = (place: SearchResult) => {
     const lat = parseFloat(place.lat);
     const lng = parseFloat(place.lon);
-    onChange(lat, lng);
+    onChange?.(lat, lng);
     setResolvedAddress(place.display_name);
     setShowDropdown(false);
     setSearchQuery('');
