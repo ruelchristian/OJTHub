@@ -28,7 +28,7 @@ const MainLayout: React.FC = () => {
     if (!loading && !user) {
       setAuthModalOpen(true);
     }
-  }, [user, loading, isGuest]);
+  }, [user, loading]);
 
   if (loading) {
     return (
