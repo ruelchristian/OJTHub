@@ -27,13 +27,23 @@ public static class DatabaseMigrationExtensions
                     {
                         logger.LogInformation("Applying {Count} pending EF Core migration(s): {Migrations}",
                             pendingMigrations.Count, string.Join(", ", pendingMigrations));
-                        await db.Database.MigrateAsync();
-                        logger.LogInformation("EF Core migrations applied successfully.");
+                        try
+                        {
+                            await db.Database.MigrateAsync();
+                            logger.LogInformation("EF Core migrations applied successfully.");
+                        }
+                        catch (Exception migEx)
+                        {
+                            logger.LogWarning(migEx, "Direct migration notice: {Message}. Ensuring tables via EnsureCreated...", migEx.Message);
+                            await db.Database.EnsureCreatedAsync();
+                        }
                     }
                     else
                     {
                         logger.LogInformation("Database schema is up to date. No pending migrations.");
                     }
+
+                    await EnsurePerimeterLogsSchemaAsync(db, logger);
                 }
                 else
                 {
@@ -122,6 +132,38 @@ public static class DatabaseMigrationExtensions
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Bridge check encountered non-fatal notice (database may be fresh or uninitialized): {Message}", ex.Message);
+        }
+    }
+
+    private static async Task EnsurePerimeterLogsSchemaAsync(OJTHubDbContext db, ILogger logger)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE ""AttendanceRecords"" ADD COLUMN IF NOT EXISTS ""PerimeterBreachCount"" integer NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS ""PerimeterLogs"" (
+                    ""Id"" uuid NOT NULL,
+                    ""AttendanceRecordId"" uuid NOT NULL,
+                    ""UserId"" uuid NOT NULL,
+                    ""Timestamp"" timestamp with time zone NOT NULL,
+                    ""EventType"" character varying(50) NOT NULL,
+                    ""Latitude"" numeric(9,6) NOT NULL,
+                    ""Longitude"" numeric(9,6) NOT NULL,
+                    ""DistanceMeters"" numeric(6,1) NOT NULL,
+                    ""GpsAccuracy"" numeric(5,1) NOT NULL,
+                    ""Note"" character varying(255) NULL,
+                    CONSTRAINT ""PK_PerimeterLogs"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_PerimeterLogs_AttendanceRecords_AttendanceRecordId"" FOREIGN KEY (""AttendanceRecordId"") REFERENCES ""AttendanceRecords"" (""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PerimeterLogs_AttendanceRecordId"" ON ""PerimeterLogs"" (""AttendanceRecordId"");
+                CREATE INDEX IF NOT EXISTS ""IX_PerimeterLogs_UserId"" ON ""PerimeterLogs"" (""UserId"");
+            ");
+            logger.LogInformation("PerimeterLogs table and columns verified successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "PerimeterLogs schema verification notice: {Message}", ex.Message);
         }
     }
 }

@@ -61,7 +61,7 @@ The multi-stage build performs 3 steps:
 - **Web Application**: [https://ojthub.onrender.com](https://ojthub.onrender.com)
 - **Health Check Endpoint**: [https://ojthub.onrender.com/api/health](https://ojthub.onrender.com/api/health)
 - **Render Service ID**: `srv-dao897h42hec738rdqq0` (Region: Singapore)
-- **Render Database ID**: `dpg-dao89lo473hc739b2s4g-a` (`ojthub-db`, PostgreSQL 16)
+- **Render Database ID**: `dpg-dbbgihtg1s2s738tmtjg-a` (`ojthub-db`, PostgreSQL 16)
 - **GitHub Repository**: [https://github.com/ruelchristian/OJTHub](https://github.com/ruelchristian/OJTHub)
 - **Render Dashboard**: [https://dashboard.render.com/web/srv-dao897h42hec738rdqq0](https://dashboard.render.com/web/srv-dao897h42hec738rdqq0)
 

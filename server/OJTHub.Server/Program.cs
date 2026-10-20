@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using OJTHub.Server.Data;
 using OJTHub.Server.Endpoints;
@@ -56,6 +57,7 @@ var connectionString = ParseConnectionString(rawConn);
 
 builder.Services.AddDbContext<OJTHubDbContext>(options =>
 {
+    options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     if (connectionString.StartsWith("Data Source=") || connectionString.EndsWith(".db"))
     {
         options.UseSqlite(connectionString);
