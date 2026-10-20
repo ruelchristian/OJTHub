@@ -8,7 +8,7 @@ interface WorkplaceMapPickerProps {
   radiusMeters: number;
   deviceLatitude?: number | null;
   deviceLongitude?: number | null;
-  onChange: (lat: number, lng: number) => void;
+  onChange?: (lat: number, lng: number) => void;
   onUseCurrentLocation?: () => void;
   height?: string;
   readOnly?: boolean;

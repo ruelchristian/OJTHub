@@ -434,59 +434,7 @@ export const Dashboard: React.FC = () => {
 
   };
 
-  const handleCalibrateWorkplace = async () => {
-
-    if (geo.latitude === null || geo.longitude === null) {
-
-      setActionError('GPS coordinates not acquired yet. Please verify device location permissions.');
-
-      return;
-
-    }
-
-    setCalibrating(true);
-
-    setActionError(null);
-
-    try {
-
-      const updated = await api.settings.update({
-
-        workplaceLatitude: geo.latitude,
-
-        workplaceLongitude: geo.longitude
-
-      });
-
-      setStatus(prev => ({
-
-        hasActiveShift: prev?.hasActiveShift ?? false,
-
-        todayRecord: prev?.todayRecord,
-
-        settings: updated
-
-      }));
-
-      setCalibrationSuccess(`Workplace location calibrated to your coordinates (${geo.latitude.toFixed(5)}, ${geo.longitude.toFixed(5)})!`);
-
-      setTimeout(() => setCalibrationSuccess(null), 5000);
-
-      await loadData();
-
-    } catch (err: any) {
-
-      setActionError(err.message || 'Failed to calibrate workplace location');
-
-    } finally {
-
-      setCalibrating(false);
-
-    }
-
-  };
-
-  const handleTimeIn = async () => {
+    const handleTimeIn = async () => {
 
     if (geo.latitude === null || geo.longitude === null || geo.accuracy === null) {
 
@@ -565,8 +513,6 @@ export const Dashboard: React.FC = () => {
   return (
 
     <div className="space-y-4 sm:space-y-6 pb-6">
-
-      
 
       {/* Institutional Class & Supervisor Indicator Banner */}
 
@@ -1022,8 +968,6 @@ export const Dashboard: React.FC = () => {
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl text-center flex flex-col items-center justify-center relative overflow-hidden">
 
-        
-
         {/* Subtle Background Glow */}
 
         <div className={`absolute -top-24 -left-24 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors ${
@@ -1305,8 +1249,6 @@ export const Dashboard: React.FC = () => {
       {/* Progress & Hours Summary Metrics */}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-
-        
 
         {/* Rendered Hours */}
 
