@@ -194,14 +194,28 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
 
       mapInstanceRef.current = map;
       fetchAddress(latitude, longitude);
-    }
 
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+      // Invalidate size after container expands/animates to prevent gray tiles
+      const timer1 = setTimeout(() => map.invalidateSize(), 100);
+      const timer2 = setTimeout(() => map.invalidateSize(), 400);
+
+      const resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      if (mapContainerRef.current) {
+        resizeObserver.observe(mapContainerRef.current);
       }
-    };
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        resizeObserver.disconnect();
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+      };
+    }
   }, []);
 
   // Update marker, circle, and map when props change
@@ -215,6 +229,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       markerRef.current.setLatLng([latitude, longitude]);
       circleRef.current.setLatLng([latitude, longitude]);
       mapInstanceRef.current.panTo([latitude, longitude]);
+      mapInstanceRef.current.invalidateSize();
       fetchAddress(latitude, longitude);
     }
 
