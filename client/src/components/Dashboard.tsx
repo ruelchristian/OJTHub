@@ -888,51 +888,10 @@ export const Dashboard: React.FC = () => {
 
             </div>
 
-            {!status?.settings?.isLocked ? (
-
-              <button
-
-                type="button"
-
-                onClick={async () => {
-
-                  const relaxedLimit = Math.max(geo.accuracy! + 20, 150);
-
-                  try {
-
-                    const updated = await api.settings.update({ gpsAccuracyThreshold: relaxedLimit });
-
-                    setStatus(prev => prev ? { ...prev, settings: updated } : null);
-
-                    setCalibrationSuccess(`GPS accuracy gate adjusted to ${relaxedLimit}m for this device!`);
-
-                    setTimeout(() => setCalibrationSuccess(null), 4000);
-
-                  } catch (e: any) {
-
-                    setActionError(e.message || 'Failed to adjust accuracy threshold');
-
-                  }
-
-                }}
-
-                className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-
-              >
-
-                <span>Allow {Math.max(geo.accuracy + 20, 150)}m Gate</span>
-
-              </button>
-
-            ) : (
-
-              <div className="text-[11px] text-slate-400 italic shrink-0">
-
-                Gate locked by {status?.settings?.managedBySupervisorName || 'supervisor'}.
-
+            <div className="text-[11px] text-amber-300/90 font-medium shrink-0 flex items-center gap-1.5 bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-800/40">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Accuracy Gate (&le;{accuracyLimit}m) Governed by Coordinator</span>
               </div>
-
-            )}
 
           </div>
 

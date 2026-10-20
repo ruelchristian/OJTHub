@@ -36,6 +36,15 @@ const SupervisorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 };
 
+const TraineeRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  if (user && user.role === 'Supervisor') {
+    return <Navigate to="/supervisor" replace />;
+  }
+  return <>{children}</>;
+};
+
+
 const MainLayout: React.FC = () => {
 
   const { user, loading } = useAuth();
@@ -82,15 +91,15 @@ const MainLayout: React.FC = () => {
 
           <Route path="/" element={<Navigate to={defaultRedirect} replace />} />
 
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<TraineeRoute><Dashboard /></TraineeRoute>} />
 
-          <Route path="/history" element={<AttendanceHistory />} />
+          <Route path="/history" element={<TraineeRoute><AttendanceHistory /></TraineeRoute>} />
 
-          <Route path="/activities" element={<ActivityLogger />} />
+          <Route path="/activities" element={<TraineeRoute><ActivityLogger /></TraineeRoute>} />
 
-          <Route path="/reports" element={<AiReporting />} />
+          <Route path="/reports" element={<TraineeRoute><AiReporting /></TraineeRoute>} />
 
-          <Route path="/documents" element={<DtrGenerator />} />
+          <Route path="/documents" element={<TraineeRoute><DtrGenerator /></TraineeRoute>} />
 
           <Route
 

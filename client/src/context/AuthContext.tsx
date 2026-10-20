@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   isGuest: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<User>;
   register: (
     email: string, 
     pass: string, 
@@ -17,7 +17,7 @@ interface AuthContextType {
     schoolName?: string,
     department?: string,
     supervisorCode?: string
-  ) => Promise<void>;
+  ) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -47,12 +47,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadUser();
   }, [token]);
 
-  const login = async (email: string, pass: string) => {
+  const login = async (email: string, pass: string): Promise<User> => {
     const res = await api.auth.login({ email, password: pass });
     localStorage.setItem('ojthub_token', res.token);
     localStorage.removeItem('ojthub_guest');
     setToken(res.token);
     setUser(res.user);
+    return res.user;
   };
 
   const register = async (
@@ -79,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ojthub_guest');
     setToken(res.token);
     setUser(res.user);
+    return res.user;
   };
 
   const logout = () => {
