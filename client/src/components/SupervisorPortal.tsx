@@ -665,6 +665,10 @@ export const SupervisorPortal: React.FC = () => {
                             </span>
                           )}
 
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-900 text-slate-400 border border-slate-800">
+                            Precision: ±{r.timeInGpsAccuracy}m
+                          </span>
+
                           {/* Perimeter Breach & Out-of-Range Badge */}
                           {r.perimeterLogs?.some(p => p.eventType === 'LocationDisabled') && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">

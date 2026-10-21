@@ -38,7 +38,9 @@ import {
 
   CloudUpload,
 
-  School
+  School,
+
+  Info
 
 } from 'lucide-react';
 
@@ -921,39 +923,25 @@ export const Dashboard: React.FC = () => {
 
         )}
 
-        {/* GPS Warning if accuracy is low */}
-
+        {/* GPS Telemetry & Audit Banner when accuracy exceeds strict threshold */}
         {geo.accuracy !== null && !isGpsAccurate && (
-
-          <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-300 animate-fade-in">
-
+          <div className="mt-3 bg-sky-500/10 border border-sky-500/20 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-sky-300 animate-fade-in">
             <div className="flex items-start gap-2.5 min-w-0">
-
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-sky-400" />
               <div>
-
-                <p className="font-semibold text-amber-200">
-
-                  GPS signal accuracy ({geo.accuracy}m) exceeds required gate (&le; {accuracyLimit}m)
-
+                <p className="font-semibold text-sky-200">
+                  Wi-Fi / Desktop Signal Detected (±{geo.accuracy}m precision)
                 </p>
-
                 <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
-                  Desktop browsers & indoor Wi-Fi usually report ~100m–200m because PCs lack satellite GPS hardware. Your coordinator can adjust the GPS Accuracy Gate in Rules to allow indoor/PC attendance.
+                  You are within the workplace perimeter. Your signal precision is safely recorded in the audit log for supervisor verification.
                 </p>
-
               </div>
-
             </div>
-
-            <div className="text-[11px] text-amber-300/90 font-medium shrink-0 flex items-center gap-1.5 bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-800/40">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Accuracy Gate (&le;{accuracyLimit}m) Governed by Coordinator</span>
-              </div>
-
+            <div className="text-[11px] text-sky-300/90 font-medium shrink-0 flex items-center gap-1.5 bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-800/40">
+              <ShieldCheck className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span>Audit Logged (&le;{accuracyLimit}m target)</span>
+            </div>
           </div>
-
         )}
 
         {geo.error && (

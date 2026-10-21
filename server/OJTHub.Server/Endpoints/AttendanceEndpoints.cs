@@ -34,15 +34,6 @@ public static class AttendanceEndpoints
                 return Results.BadRequest(new { message = "You have already completed your shift for today." });
             }
 
-            // Check GPS accuracy threshold
-            if (req.Accuracy > setting.GpsAccuracyThreshold)
-            {
-                return Results.BadRequest(new
-                {
-                    message = $"GPS signal is too weak (accuracy: {req.Accuracy:F1}m exceeds allowable limit of {setting.GpsAccuracyThreshold}m). Please move outdoors or near a window and retry."
-                });
-            }
-
             // Calculate Haversine distance
             var distance = attendanceService.CalculateDistanceMeters(
                 req.Latitude, req.Longitude,
@@ -50,6 +41,13 @@ public static class AttendanceEndpoints
             );
 
             var withinGeofence = distance <= setting.GeofenceRadiusMeters;
+
+            // Telemetry & Audit: If GPS accuracy exceeds coordinator threshold, record remark for supervisor review rather than blocking attendance
+            string? accuracyRemark = null;
+            if (req.Accuracy > setting.GpsAccuracyThreshold)
+            {
+                accuracyRemark = $"Logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit); recorded for supervisor review.";
+            }
 
             var punchTime = DateTimeOffset.UtcNow;
             if (req.ClientTimestamp.HasValue && 
@@ -69,6 +67,7 @@ public static class AttendanceEndpoints
                 TimeInDistance = distance,
                 TimeInGpsAccuracy = req.Accuracy,
                 TimeInWithinGeofence = withinGeofence,
+                SupervisorRemark = accuracyRemark,
                 LunchBreakMinutes = setting.DefaultLunchMinutes
             };
 
@@ -127,6 +126,14 @@ public static class AttendanceEndpoints
             if ((now - record.TimeIn).TotalHours >= 12.0 && string.IsNullOrWhiteSpace(record.SupervisorRemark))
             {
                 record.SupervisorRemark = "Extended shift (>12 hours logged; flagged for supervisor verification)";
+            }
+
+            if (setting != null && req.Accuracy > setting.GpsAccuracyThreshold)
+            {
+                var timeoutNote = $"Time-out logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit)";
+                record.SupervisorRemark = string.IsNullOrWhiteSpace(record.SupervisorRemark)
+                    ? timeoutNote
+                    : $"{record.SupervisorRemark} | {timeoutNote}";
             }
 
             record.TimeOut = now;
