@@ -145,15 +145,26 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       // Zoom control at topright so it doesn't collide with the top-left legend
       L.control.zoom({ position: 'topright' }).addTo(map);
 
-      // Modern clean CartoDB Voyager tiles (crisp & high performance)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Basemap Tile Layer
+      // If a CARTO API key is provided via VITE_CARTO_API_KEY, use Voyager tiles with the key.
+      // Otherwise, default to standard OpenStreetMap tiles (100% free, no API key, no watermark).
+      const cartoKey = import.meta.env.VITE_CARTO_API_KEY;
+      const tileUrl = cartoKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoKey}`
+        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+      L.tileLayer(tileUrl, {
         maxZoom: 19,
-        subdomains: 'abcd'
+        subdomains: cartoKey ? 'abcd' : ''
       }).addTo(map);
 
       // Attribution
       L.control.attribution({ position: 'bottomright' })
-        .addAttribution('&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://openstreetmap.org">OSM</a>')
+        .addAttribution(
+          cartoKey
+            ? '&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://openstreetmap.org">OSM</a>'
+            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        )
         .addTo(map);
 
       // Geofence Circle
