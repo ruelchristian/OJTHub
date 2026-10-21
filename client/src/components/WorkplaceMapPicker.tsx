@@ -186,7 +186,13 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       markerRef.current = marker;
 
       if (!readOnly) {
-        // Drag end event
+        // Live drag update - coordinates update as pin moves
+        marker.on('drag', () => {
+          const pos = marker.getLatLng();
+          circle.setLatLng(pos);
+          onChange?.(pos.lat, pos.lng);
+        });
+
         marker.on('dragend', () => {
           const pos = marker.getLatLng();
           onChange?.(pos.lat, pos.lng);
@@ -194,10 +200,11 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
           fetchAddress(pos.lat, pos.lng);
         });
 
-        // Map click event
+        // Map click event - jump pin to clicked spot & update coordinates
         map.on('click', (e: L.LeafletMouseEvent) => {
           marker.setLatLng(e.latlng);
           circle.setLatLng(e.latlng);
+          map.panTo(e.latlng);
           onChange?.(e.latlng.lat, e.latlng.lng);
           fetchAddress(e.latlng.lat, e.latlng.lng);
         });

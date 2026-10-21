@@ -957,35 +957,38 @@ export const SupervisorPortal: React.FC = () => {
                 {showAdvancedCoords && (
                   <div className="p-3 bg-slate-950/90 grid grid-cols-1 sm:grid-cols-3 gap-2.5 border-t border-slate-800">
                     <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">Latitude</label>
+                      <label className="text-[10px] text-slate-400 block mb-1">Latitude (Auto-set by Pin)</label>
                       <input
                         type="number"
                         step="any"
                         value={cfgLat}
                         onChange={(e) => setCfgLat(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">Longitude</label>
+                      <label className="text-[10px] text-slate-400 block mb-1">Longitude (Auto-set by Pin)</label>
                       <input
                         type="number"
                         step="any"
                         value={cfgLng}
                         onChange={(e) => setCfgLng(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">GPS Accuracy Threshold (m)</label>
+                      <label className="text-[10px] text-slate-400 block mb-1" title="Signal quality gate: Rejects punches if phone GPS error exceeds this value">
+                        GPS Accuracy Threshold (Signal Quality Limit)
+                      </label>
                       <input
                         type="number"
                         min="10"
                         max="300"
                         value={cfgAccuracy}
                         onChange={(e) => setCfgAccuracy(parseInt(e.target.value) || 150)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                       />
+                      <span className="text-[9px] text-slate-500 block mt-0.5">Phone signal tolerance (not a map location)</span>
                     </div>
                   </div>
                 )}
