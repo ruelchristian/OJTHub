@@ -137,39 +137,64 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-
     loadData();
 
     const unsub = offlineQueue.subscribe((count) => {
-
       setPendingSyncCount(count);
-
     });
 
     const handleOnline = () => {
-
       setIsOnline(true);
-
       handleManualSync();
-
     };
 
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('online', handleOnline);
-
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-
-      unsub();
-
-      window.removeEventListener('online', handleOnline);
-
-      window.removeEventListener('offline', handleOffline);
-
+    // Live re-fetching when window gains focus or tab becomes visible
+    const handleFocus = () => {
+      loadData();
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cross-tab real-time sync via BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('ojthub_rules_channel');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'RULES_UPDATED') {
+          loadData();
+        }
+      };
+    } catch {
+      // Ignore if unsupported
+    }
+
+    // Periodic live polling (every 15 seconds) so supervisor updates propagate dynamically
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    }, 15000);
+
+    return () => {
+      unsub();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (bc) bc.close();
+      clearInterval(pollInterval);
+    };
   }, [user?.id]);
 
   // Timer for active shift
@@ -915,9 +940,7 @@ export const Dashboard: React.FC = () => {
                 </p>
 
                 <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
-
-                  Desktop browsers & indoor Wi-Fi usually report ~100m because PCs lack satellite GPS hardware.
-
+                  Desktop browsers & indoor Wi-Fi usually report ~100m–200m because PCs lack satellite GPS hardware. Your coordinator can adjust the GPS Accuracy Gate in Rules to allow indoor/PC attendance.
                 </p>
 
               </div>

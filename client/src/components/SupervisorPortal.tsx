@@ -95,7 +95,7 @@ export const SupervisorPortal: React.FC = () => {
     setCfgLat(s?.workplaceLatitude || 14.583916);
     setCfgLng(s?.workplaceLongitude || 121.063291);
     setCfgRadius(s?.geofenceRadiusMeters || 100);
-    setCfgAccuracy(s?.gpsAccuracyThreshold || 150);
+    setCfgAccuracy(s?.gpsAccuracyThreshold || 250);
     setCfgTargetHours((s?.targetTotalHours || t.targetTotalHours || 486.0).toString());
     setCfgDailyHours((s?.dailyScheduleHours || 8.0).toString());
     setCfgLunchMins(s?.defaultLunchMinutes || 60);
@@ -125,6 +125,13 @@ export const SupervisorPortal: React.FC = () => {
         const res = await api.supervisor.updateTraineeSettings(configuringTrainee.traineeId, payload);
         alert(res.message);
       }
+
+      // Broadcast update across open tabs/windows so student screens update immediately without refresh
+      try {
+        const bc = new BroadcastChannel('ojthub_rules_channel');
+        bc.postMessage({ type: 'RULES_UPDATED', timestamp: Date.now() });
+        bc.close();
+      } catch {}
 
       setConfiguringTrainee(null);
       await loadData();
@@ -985,10 +992,10 @@ export const SupervisorPortal: React.FC = () => {
                         min="10"
                         max="300"
                         value={cfgAccuracy}
-                        onChange={(e) => setCfgAccuracy(parseInt(e.target.value) || 150)}
+                        onChange={(e) => setCfgAccuracy(parseInt(e.target.value) || 250)}
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                       />
-                      <span className="text-[9px] text-slate-500 block mt-0.5">Phone signal tolerance (not a map location)</span>
+                      <span className="text-[9px] text-slate-500 block mt-0.5">Device accuracy gate (e.g. 250m for PC/Wi-Fi, 50m for strict GPS). Does not change when picking map locations.</span>
                     </div>
                   </div>
                 )}

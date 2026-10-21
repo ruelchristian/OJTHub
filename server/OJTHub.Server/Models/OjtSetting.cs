@@ -19,14 +19,14 @@ public class OjtSetting
     public string CompanyName { get; set; } = "Partner Host Training Establishment";
 
     [Column(TypeName = "decimal(9,6)")]
-    public decimal WorkplaceLatitude { get; set; } = 14.599512m; // Default reasonable workplace coordinates
+    public decimal WorkplaceLatitude { get; set; } = 14.583916m; // Default One Corporate Centre (OCC)
 
     [Column(TypeName = "decimal(9,6)")]
-    public decimal WorkplaceLongitude { get; set; } = 120.984222m;
+    public decimal WorkplaceLongitude { get; set; } = 121.063291m;
 
     public int GeofenceRadiusMeters { get; set; } = 100;
 
-    public int GpsAccuracyThreshold { get; set; } = 150;
+    public int GpsAccuracyThreshold { get; set; } = 250; // Accommodates desktop browsers & indoor Wi-Fi (~150m-200m) while protecting perimeter integrity
 
     [Column(TypeName = "decimal(5,1)")]
     public decimal TargetTotalHours { get; set; } = 486.0m;

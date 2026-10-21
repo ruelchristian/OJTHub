@@ -281,6 +281,28 @@ public static class DatabaseMigrationExtensions
                 await db.SaveChangesAsync();
                 logger.LogInformation("Sample attendance shifts and activity logs seeded for student@ojthub.com.");
             }
+
+            // Ensure all existing settings have at least 250m accuracy threshold for desktop/Wi-Fi support
+            // and point to One Corporate Centre (OCC)
+            var allSettings = await db.OjtSettings.ToListAsync();
+            foreach (var s in allSettings)
+            {
+                if (s.GpsAccuracyThreshold < 250)
+                {
+                    s.GpsAccuracyThreshold = 250;
+                }
+                if (s.WorkplaceLatitude == 14.599512m || s.CompanyName.Contains("Partner Host Training"))
+                {
+                    s.CompanyName = "One Corporate Centre (OCC)";
+                    s.WorkplaceLatitude = 14.583916m;
+                    s.WorkplaceLongitude = 121.063291m;
+                }
+            }
+            if (db.ChangeTracker.HasChanges())
+            {
+                await db.SaveChangesAsync();
+                logger.LogInformation("Updated OjtSettings to OCC coordinates and 250m GPS accuracy threshold.");
+            }
         }
         catch (Exception ex)
         {

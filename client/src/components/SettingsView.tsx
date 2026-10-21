@@ -247,8 +247,14 @@ export const SettingsView: React.FC = () => {
       });
 
       setSavedSuccess(true);
-
       setTimeout(() => setSavedSuccess(false), 4000);
+
+      // Broadcast update across open tabs/windows
+      try {
+        const bc = new BroadcastChannel('ojthub_rules_channel');
+        bc.postMessage({ type: 'RULES_UPDATED', timestamp: Date.now() });
+        bc.close();
+      } catch {}
 
     } catch (err: any) {
 

@@ -366,15 +366,22 @@ public static class AttendanceEndpoints
 
     private static async Task<OjtSetting> GetEffectiveSettingAsync(OJTHubDbContext db, Guid userId)
     {
-        var user = await db.Users.FindAsync(userId);
+        var user = await db.Users
+            .Include(u => u.Supervisor)
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
-        // If trainee is linked to a supervisor, always dynamically use the supervisor's active workplace rules
+        // If trainee is linked to a supervisor, use trainee's specific setting or fallback to supervisor's active workplace rules
         if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
         {
+            var traineeSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId);
             var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
-            if (supervisorSetting != null)
+
+            var effective = traineeSetting ?? supervisorSetting;
+            if (effective != null)
             {
-                return supervisorSetting;
+                effective.IsLocked = true;
+                effective.ManagedBySupervisorName = user.Supervisor?.FullName ?? "Supervisor";
+                return effective;
             }
         }
 
