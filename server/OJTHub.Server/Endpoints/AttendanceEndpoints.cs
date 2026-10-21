@@ -163,8 +163,10 @@ public static class AttendanceEndpoints
 
             var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var user = await db.Users.FindAsync(userId.Value);
+            var supervisor = user?.SupervisorId != null ? await db.Users.FindAsync(user.SupervisorId.Value) : null;
 
             var hasActiveShift = record != null && record.TimeOut == null;
+            var isLocked = user != null && user.Role == "Trainee" && user.SupervisorId != null;
 
             return Results.Ok(new AttendanceStatusResponse(
                 hasActiveShift,
@@ -173,7 +175,10 @@ public static class AttendanceEndpoints
                     setting.Id, setting.CompanyName, setting.WorkplaceLatitude,
                     setting.WorkplaceLongitude, setting.GeofenceRadiusMeters,
                     setting.GpsAccuracyThreshold, setting.TargetTotalHours,
-                    setting.DailyScheduleHours, setting.DefaultLunchMinutes
+                    setting.DailyScheduleHours, setting.DefaultLunchMinutes,
+                    isLocked,
+                    supervisor?.FullName,
+                    user?.SupervisorId
                 ) : null
             ));
         })
@@ -371,24 +376,20 @@ public static class AttendanceEndpoints
             {
                 if (setting == null)
                 {
-                    setting = new OjtSetting { UserId = userId };
+                    setting = new OjtSetting
+                    {
+                        UserId = userId,
+                        CompanyName = supervisorSetting.CompanyName,
+                        WorkplaceLatitude = supervisorSetting.WorkplaceLatitude,
+                        WorkplaceLongitude = supervisorSetting.WorkplaceLongitude,
+                        GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters,
+                        GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold,
+                        TargetTotalHours = supervisorSetting.TargetTotalHours,
+                        DailyScheduleHours = supervisorSetting.DailyScheduleHours,
+                        DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
                     db.OjtSettings.Add(setting);
-                }
-
-                if (setting.WorkplaceLatitude != supervisorSetting.WorkplaceLatitude ||
-                    setting.WorkplaceLongitude != supervisorSetting.WorkplaceLongitude ||
-                    setting.GeofenceRadiusMeters != supervisorSetting.GeofenceRadiusMeters ||
-                    supervisorSetting.UpdatedAt > setting.UpdatedAt)
-                {
-                    setting.CompanyName = supervisorSetting.CompanyName;
-                    setting.WorkplaceLatitude = supervisorSetting.WorkplaceLatitude;
-                    setting.WorkplaceLongitude = supervisorSetting.WorkplaceLongitude;
-                    setting.GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters;
-                    setting.GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold;
-                    setting.TargetTotalHours = supervisorSetting.TargetTotalHours;
-                    setting.DailyScheduleHours = supervisorSetting.DailyScheduleHours;
-                    setting.DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes;
-                    setting.UpdatedAt = DateTimeOffset.UtcNow;
                     await db.SaveChangesAsync();
                 }
 
@@ -398,7 +399,7 @@ public static class AttendanceEndpoints
 
         if (setting == null)
         {
-            setting = new OjtSetting { UserId = userId };
+            setting = new OjtSetting { UserId = userId, UpdatedAt = DateTimeOffset.UtcNow };
             db.OjtSettings.Add(setting);
             await db.SaveChangesAsync();
         }

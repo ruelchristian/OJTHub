@@ -21,41 +21,34 @@ public static class SettingsEndpoints
 
             var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
 
-            // If trainee is linked to a supervisor, keep workplace geofence synchronized with supervisor
+            // If trainee is linked to a supervisor and has no settings yet, initialize from supervisor
             if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
             {
                 var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
-                if (supervisorSetting != null)
+                if (supervisorSetting != null && setting == null)
                 {
-                    if (setting == null)
+                    setting = new OjtSetting
                     {
-                        setting = new OjtSetting { UserId = userId.Value };
-                        db.OjtSettings.Add(setting);
-                    }
-
-                    if (setting.WorkplaceLatitude != supervisorSetting.WorkplaceLatitude ||
-                        setting.WorkplaceLongitude != supervisorSetting.WorkplaceLongitude ||
-                        setting.GeofenceRadiusMeters != supervisorSetting.GeofenceRadiusMeters ||
-                        supervisorSetting.UpdatedAt > setting.UpdatedAt)
-                    {
-                        setting.CompanyName = supervisorSetting.CompanyName;
-                        setting.WorkplaceLatitude = supervisorSetting.WorkplaceLatitude;
-                        setting.WorkplaceLongitude = supervisorSetting.WorkplaceLongitude;
-                        setting.GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters;
-                        setting.GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold;
-                        setting.TargetTotalHours = supervisorSetting.TargetTotalHours;
-                        setting.DailyScheduleHours = supervisorSetting.DailyScheduleHours;
-                        setting.DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes;
-                        setting.UpdatedAt = DateTimeOffset.UtcNow;
-                        await db.SaveChangesAsync();
-                    }
+                        UserId = userId.Value,
+                        CompanyName = supervisorSetting.CompanyName,
+                        WorkplaceLatitude = supervisorSetting.WorkplaceLatitude,
+                        WorkplaceLongitude = supervisorSetting.WorkplaceLongitude,
+                        GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters,
+                        GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold,
+                        TargetTotalHours = supervisorSetting.TargetTotalHours,
+                        DailyScheduleHours = supervisorSetting.DailyScheduleHours,
+                        DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+                    db.OjtSettings.Add(setting);
+                    await db.SaveChangesAsync();
                 }
             }
 
             if (setting == null)
             {
                 // Create default if missing
-                setting = new OjtSetting { UserId = userId.Value };
+                setting = new OjtSetting { UserId = userId.Value, UpdatedAt = DateTimeOffset.UtcNow };
                 db.OjtSettings.Add(setting);
                 await db.SaveChangesAsync();
             }

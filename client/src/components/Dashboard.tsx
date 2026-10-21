@@ -170,7 +170,7 @@ export const Dashboard: React.FC = () => {
 
     };
 
-  }, []);
+  }, [user?.id]);
 
   // Timer for active shift
 
@@ -594,11 +594,27 @@ export const Dashboard: React.FC = () => {
 
           <div>
 
-            <div className="flex items-center gap-1.5 text-sky-400 font-semibold text-[11px] sm:text-xs uppercase tracking-wider truncate">
+            <div className="flex flex-wrap items-center gap-2 text-sky-400 font-semibold text-[11px] sm:text-xs uppercase tracking-wider">
 
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <div className="flex items-center gap-1.5 truncate">
 
-              <span className="truncate">{status?.settings?.companyName || 'Host Training Establishment'}</span>
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+
+                <span className="truncate">{status?.settings?.companyName || 'Host Training Establishment'}</span>
+
+              </div>
+
+              {status?.settings?.managedBySupervisorName && (
+
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 text-[11px] font-medium tracking-normal normal-case">
+
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+
+                  Instructor: <strong className="text-white font-semibold">{status.settings.managedBySupervisorName}</strong>
+
+                </span>
+
+              )}
 
             </div>
 
@@ -680,11 +696,17 @@ export const Dashboard: React.FC = () => {
 
             <button
 
-              onClick={geo.refreshLocation}
+              onClick={() => {
+
+                geo.refreshLocation();
+
+                loadData();
+
+              }}
 
               disabled={geo.loading}
 
-              title="Refresh GPS location"
+              title="Refresh GPS location & Workplace Rules"
 
               className="min-h-[40px] min-w-[40px] p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-300 transition-all flex items-center justify-center shrink-0 cursor-pointer"
 
@@ -1047,7 +1069,13 @@ export const Dashboard: React.FC = () => {
 
                     type="button"
 
-                    onClick={geo.refreshLocation}
+                    onClick={() => {
+
+                      geo.refreshLocation();
+
+                      loadData();
+
+                    }}
 
                     className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-medium text-[11px] transition-all cursor-pointer"
 

@@ -284,6 +284,17 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
         const data: SearchResult[] = await res.json();
         setSearchResults(data);
         setShowDropdown(true);
+        if (data.length > 0) {
+          // Automatically pan to top match while showing dropdown for alternates
+          const topMatch = data[0];
+          const lat = parseFloat(topMatch.lat);
+          const lng = parseFloat(topMatch.lon);
+          onChange?.(lat, lng);
+          setResolvedAddress(topMatch.display_name);
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([lat, lng], 17, { duration: 1.2 });
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to search places', err);
