@@ -379,8 +379,6 @@ public static class AttendanceEndpoints
             var effective = traineeSetting ?? supervisorSetting;
             if (effective != null)
             {
-                effective.IsLocked = true;
-                effective.ManagedBySupervisorName = user.Supervisor?.FullName ?? "Supervisor";
                 return effective;
             }
         }
