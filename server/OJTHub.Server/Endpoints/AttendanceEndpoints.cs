@@ -16,13 +16,7 @@ public static class AttendanceEndpoints
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
 
-            var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
-            if (setting == null)
-            {
-                setting = new OjtSetting { UserId = userId.Value };
-                db.OjtSettings.Add(setting);
-                await db.SaveChangesAsync();
-            }
+            var setting = await GetEffectiveSettingAsync(db, userId.Value);
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -94,7 +88,7 @@ public static class AttendanceEndpoints
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
 
-            var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
+            var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
             // Find active shift
@@ -167,7 +161,7 @@ public static class AttendanceEndpoints
                 .ThenByDescending(a => a.TimeIn)
                 .FirstOrDefaultAsync(a => a.Date == today || a.TimeOut == null);
 
-            var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
+            var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var user = await db.Users.FindAsync(userId.Value);
 
             var hasActiveShift = record != null && record.TimeOut == null;
@@ -224,7 +218,7 @@ public static class AttendanceEndpoints
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
 
-            var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
+            var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var targetHours = setting?.TargetTotalHours ?? 486.0m;
 
             var records = await db.AttendanceRecords
@@ -363,5 +357,52 @@ public static class AttendanceEndpoints
     {
         var claim = principal.FindFirst("userId")?.Value;
         return Guid.TryParse(claim, out var id) ? id : null;
+    }
+
+    private static async Task<OjtSetting> GetEffectiveSettingAsync(OJTHubDbContext db, Guid userId)
+    {
+        var user = await db.Users.FindAsync(userId);
+        var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
+        {
+            var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
+            if (supervisorSetting != null)
+            {
+                if (setting == null)
+                {
+                    setting = new OjtSetting { UserId = userId };
+                    db.OjtSettings.Add(setting);
+                }
+
+                if (setting.WorkplaceLatitude != supervisorSetting.WorkplaceLatitude ||
+                    setting.WorkplaceLongitude != supervisorSetting.WorkplaceLongitude ||
+                    setting.GeofenceRadiusMeters != supervisorSetting.GeofenceRadiusMeters ||
+                    supervisorSetting.UpdatedAt > setting.UpdatedAt)
+                {
+                    setting.CompanyName = supervisorSetting.CompanyName;
+                    setting.WorkplaceLatitude = supervisorSetting.WorkplaceLatitude;
+                    setting.WorkplaceLongitude = supervisorSetting.WorkplaceLongitude;
+                    setting.GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters;
+                    setting.GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold;
+                    setting.TargetTotalHours = supervisorSetting.TargetTotalHours;
+                    setting.DailyScheduleHours = supervisorSetting.DailyScheduleHours;
+                    setting.DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes;
+                    setting.UpdatedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+
+                return setting;
+            }
+        }
+
+        if (setting == null)
+        {
+            setting = new OjtSetting { UserId = userId };
+            db.OjtSettings.Add(setting);
+            await db.SaveChangesAsync();
+        }
+
+        return setting;
     }
 }

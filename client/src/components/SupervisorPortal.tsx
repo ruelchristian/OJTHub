@@ -56,17 +56,20 @@ export const SupervisorPortal: React.FC = () => {
   const [cfgLunchMins, setCfgLunchMins] = useState<number>(60);
   const [cfgApplyToAll, setCfgApplyToAll] = useState<boolean>(false);
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
+  const [supervisorDefaultSetting, setSupervisorDefaultSetting] = useState<any>(null);
   const [showAdvancedCoords, setShowAdvancedCoords] = useState<boolean>(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [tData, codeData] = await Promise.all([
+      const [tData, codeData, sData] = await Promise.all([
         api.supervisor.getTrainees(),
-        api.supervisor.getMyCode().catch(() => ({ code: '', fullName: '' }))
+        api.supervisor.getMyCode().catch(() => ({ code: '', fullName: '' })),
+        api.settings.get().catch(() => null)
       ]);
       setTrainees(tData);
       setMyCode(codeData.code);
+      if (sData) setSupervisorDefaultSetting(sData);
     } catch (err) {
       console.error('Failed to load supervisor portal data', err);
     } finally {
@@ -879,14 +882,32 @@ export const SupervisorPortal: React.FC = () => {
 
               {/* Geofence Map */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-sky-400" />
                     Workplace Geofence Pin & Perimeter
                   </label>
-                  <span className="text-[11px] text-slate-400">
-                    Radius: {cfgRadius}m
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {supervisorDefaultSetting && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCfgCompany(supervisorDefaultSetting.companyName);
+                          setCfgLat(supervisorDefaultSetting.workplaceLatitude);
+                          setCfgLng(supervisorDefaultSetting.workplaceLongitude);
+                          setCfgRadius(supervisorDefaultSetting.geofenceRadiusMeters);
+                          setCfgAccuracy(supervisorDefaultSetting.gpsAccuracyThreshold);
+                        }}
+                        className="text-[11px] text-sky-400 hover:text-sky-300 underline font-medium cursor-pointer"
+                        title="Copy coordinator default workplace"
+                      >
+                        Use My Default Location
+                      </button>
+                    )}
+                    <span className="text-[11px] text-slate-400">
+                      Radius: {cfgRadius}m
+                    </span>
+                  </div>
                 </div>
 
                 <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-inner">
