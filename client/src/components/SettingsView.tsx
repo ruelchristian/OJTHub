@@ -28,11 +28,11 @@ export const SettingsView: React.FC = () => {
 
 
 
-  const [companyName, setCompanyName] = useState<string>('Host Training Establishment');
+  const [companyName, setCompanyName] = useState<string>('One Cainta College (OCC)');
 
-  const [lat, setLat] = useState<number>(14.599512);
+  const [lat, setLat] = useState<number>(14.578363);
 
-  const [lng, setLng] = useState<number>(120.984222);
+  const [lng, setLng] = useState<number>(121.119501);
 
   const [radius, setRadius] = useState<number>(100);
 

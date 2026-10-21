@@ -15,9 +15,9 @@ const REPORTS_KEY = 'ojthub_guest_reports';
 
 const DEFAULT_SETTINGS: OjtSetting = {
   id: 'guest-settings',
-  companyName: 'Host Training Establishment',
-  workplaceLatitude: 14.599512,
-  workplaceLongitude: 120.984222,
+  companyName: 'One Cainta College (OCC)',
+  workplaceLatitude: 14.578363,
+  workplaceLongitude: 121.119501,
   geofenceRadiusMeters: 100,
   gpsAccuracyThreshold: 150,
   targetTotalHours: 486.0,

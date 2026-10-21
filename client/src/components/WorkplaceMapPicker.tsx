@@ -277,23 +277,44 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
 
     setIsSearching(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`
+      let query = searchQuery.trim();
+      const upperQuery = query.toUpperCase();
+      if (upperQuery === 'OCC' || upperQuery.startsWith('OCC ') || upperQuery.endsWith(' OCC')) {
+        query = query.replace(/OCC/i, 'One Cainta College');
+      } else if (upperQuery === 'ICCT' || upperQuery.startsWith('ICCT ') || upperQuery.endsWith(' ICCT')) {
+        query = query.replace(/ICCT/i, 'ICCT Colleges');
+      }
+
+      // First try searching within the Philippines
+      let res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ph&limit=5&addressdetails=1`
       );
+      let data: SearchResult[] = [];
       if (res.ok) {
-        const data: SearchResult[] = await res.json();
-        setSearchResults(data);
-        setShowDropdown(true);
-        if (data.length > 0) {
-          // Automatically pan to top match while showing dropdown for alternates
-          const topMatch = data[0];
-          const lat = parseFloat(topMatch.lat);
-          const lng = parseFloat(topMatch.lon);
-          onChange?.(lat, lng);
-          setResolvedAddress(topMatch.display_name);
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([lat, lng], 17, { duration: 1.2 });
-          }
+        data = await res.json();
+      }
+
+      // If no results found in PH, fallback to global query
+      if (data.length === 0) {
+        const fallbackRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
+        );
+        if (fallbackRes.ok) {
+          data = await fallbackRes.json();
+        }
+      }
+
+      setSearchResults(data);
+      setShowDropdown(true);
+      if (data.length > 0) {
+        // Automatically pan to top match while showing dropdown for alternates
+        const topMatch = data[0];
+        const lat = parseFloat(topMatch.lat);
+        const lng = parseFloat(topMatch.lon);
+        onChange?.(lat, lng);
+        setResolvedAddress(topMatch.display_name);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([lat, lng], 17, { duration: 1.2 });
         }
       }
     } catch (err) {

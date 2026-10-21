@@ -200,9 +200,9 @@ export const Dashboard: React.FC = () => {
 
   }, [status?.hasActiveShift, status?.todayRecord?.timeIn]);
 
-  const workplaceLat = status?.settings?.workplaceLatitude ?? 14.599512;
+  const workplaceLat = status?.settings?.workplaceLatitude ?? 14.578363;
 
-  const workplaceLng = status?.settings?.workplaceLongitude ?? 120.984222;
+  const workplaceLng = status?.settings?.workplaceLongitude ?? 121.119501;
 
   const allowedRadius = status?.settings?.geofenceRadiusMeters ?? 100;
 
@@ -788,23 +788,37 @@ export const Dashboard: React.FC = () => {
 
             </div>
 
-            <WorkplaceMapPicker
+            {status?.settings ? (
 
-              latitude={workplaceLat}
+              <WorkplaceMapPicker
 
-              longitude={workplaceLng}
+                key={`${workplaceLat}-${workplaceLng}-${allowedRadius}`}
 
-              radiusMeters={allowedRadius}
+                latitude={workplaceLat}
 
-              deviceLatitude={geo.latitude}
+                longitude={workplaceLng}
 
-              deviceLongitude={geo.longitude}
+                radiusMeters={allowedRadius}
 
-              height="260px"
+                deviceLatitude={geo.latitude}
 
-              readOnly={true}
+                deviceLongitude={geo.longitude}
 
-            />
+                height="260px"
+
+                readOnly={true}
+
+              />
+
+            ) : (
+
+              <div className="h-[260px] bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-slate-400 text-xs">
+
+                <RefreshCw className="w-4 h-4 animate-spin mr-2 text-sky-400" /> Loading workplace geofence...
+
+              </div>
+
+            )}
 
           </div>
 
