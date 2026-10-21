@@ -367,36 +367,18 @@ public static class AttendanceEndpoints
     private static async Task<OjtSetting> GetEffectiveSettingAsync(OJTHubDbContext db, Guid userId)
     {
         var user = await db.Users.FindAsync(userId);
-        var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId);
 
+        // If trainee is linked to a supervisor, always dynamically use the supervisor's active workplace rules
         if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
         {
             var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
             if (supervisorSetting != null)
             {
-                if (setting == null)
-                {
-                    setting = new OjtSetting
-                    {
-                        UserId = userId,
-                        CompanyName = supervisorSetting.CompanyName,
-                        WorkplaceLatitude = supervisorSetting.WorkplaceLatitude,
-                        WorkplaceLongitude = supervisorSetting.WorkplaceLongitude,
-                        GeofenceRadiusMeters = supervisorSetting.GeofenceRadiusMeters,
-                        GpsAccuracyThreshold = supervisorSetting.GpsAccuracyThreshold,
-                        TargetTotalHours = supervisorSetting.TargetTotalHours,
-                        DailyScheduleHours = supervisorSetting.DailyScheduleHours,
-                        DefaultLunchMinutes = supervisorSetting.DefaultLunchMinutes,
-                        UpdatedAt = DateTimeOffset.UtcNow
-                    };
-                    db.OjtSettings.Add(setting);
-                    await db.SaveChangesAsync();
-                }
-
-                return setting;
+                return supervisorSetting;
             }
         }
 
+        var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId);
         if (setting == null)
         {
             setting = new OjtSetting { UserId = userId, UpdatedAt = DateTimeOffset.UtcNow };

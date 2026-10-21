@@ -46,9 +46,9 @@ export const SupervisorPortal: React.FC = () => {
 
   // Trainee Settings Configuration Modal
   const [configuringTrainee, setConfiguringTrainee] = useState<TraineeSummary | null>(null);
-  const [cfgCompany, setCfgCompany] = useState<string>('One Cainta College (OCC)');
-  const [cfgLat, setCfgLat] = useState<number>(14.578363);
-  const [cfgLng, setCfgLng] = useState<number>(121.119501);
+  const [cfgCompany, setCfgCompany] = useState<string>('One Corporate Centre (OCC)');
+  const [cfgLat, setCfgLat] = useState<number>(14.583916);
+  const [cfgLng, setCfgLng] = useState<number>(121.063291);
   const [cfgRadius, setCfgRadius] = useState<number>(100);
   const [cfgAccuracy, setCfgAccuracy] = useState<number>(150);
   const [cfgTargetHours, setCfgTargetHours] = useState<string>('486.0');
@@ -91,9 +91,9 @@ export const SupervisorPortal: React.FC = () => {
   const openConfigureSettings = (t: TraineeSummary) => {
     setConfiguringTrainee(t);
     const s = t.settings;
-    setCfgCompany(s?.companyName || t.companyName || 'One Cainta College (OCC)');
-    setCfgLat(s?.workplaceLatitude || 14.578363);
-    setCfgLng(s?.workplaceLongitude || 121.119501);
+    setCfgCompany(s?.companyName || t.companyName || 'One Corporate Centre (OCC)');
+    setCfgLat(s?.workplaceLatitude || 14.583916);
+    setCfgLng(s?.workplaceLongitude || 121.063291);
     setCfgRadius(s?.geofenceRadiusMeters || 100);
     setCfgAccuracy(s?.gpsAccuracyThreshold || 150);
     setCfgTargetHours((s?.targetTotalHours || t.targetTotalHours || 486.0).toString());

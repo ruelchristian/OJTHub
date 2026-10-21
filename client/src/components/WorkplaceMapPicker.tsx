@@ -280,7 +280,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       let query = searchQuery.trim();
       const upperQuery = query.toUpperCase();
       if (upperQuery === 'OCC' || upperQuery.startsWith('OCC ') || upperQuery.endsWith(' OCC')) {
-        query = query.replace(/OCC/i, 'One Cainta College');
+        query = query.replace(/OCC/i, 'One Corporate Centre');
       } else if (upperQuery === 'ICCT' || upperQuery.startsWith('ICCT ') || upperQuery.endsWith(' ICCT')) {
         query = query.replace(/ICCT/i, 'ICCT Colleges');
       }

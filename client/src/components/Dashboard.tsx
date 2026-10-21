@@ -200,9 +200,9 @@ export const Dashboard: React.FC = () => {
 
   }, [status?.hasActiveShift, status?.todayRecord?.timeIn]);
 
-  const workplaceLat = status?.settings?.workplaceLatitude ?? 14.578363;
+  const workplaceLat = status?.settings?.workplaceLatitude ?? 14.583916;
 
-  const workplaceLng = status?.settings?.workplaceLongitude ?? 121.119501;
+  const workplaceLng = status?.settings?.workplaceLongitude ?? 121.063291;
 
   const allowedRadius = status?.settings?.geofenceRadiusMeters ?? 100;
 
