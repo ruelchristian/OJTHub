@@ -37,3 +37,15 @@ public record PolishTaskResponse(
     string PolishedDetails
 );
 
+public record MilestoneSummaryRequest(
+    int MilestoneHours,
+    Guid? UserId = null
+);
+
+public record MilestoneSummaryResponse(
+    int MilestoneHours,
+    decimal TotalHoursLogged,
+    int ActivityCount,
+    string SummaryContent
+);
+

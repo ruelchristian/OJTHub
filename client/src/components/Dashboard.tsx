@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 import { useGeolocation } from '../hooks/useGeolocation';
 
 import { calculateDistanceMeters } from '../utils/geo';
@@ -56,6 +58,8 @@ import {
 
   RotateCcw,
 
+  BookOpen,
+
   Building2
 
 } from 'lucide-react';
@@ -69,6 +73,8 @@ import { offlineQueue } from '../services/offlineQueue';
 export const Dashboard: React.FC = () => {
 
   const { user } = useAuth();
+
+  const navigate = useNavigate();
 
   const geo = useGeolocation({ watch: true });
 
@@ -1546,6 +1552,15 @@ export const Dashboard: React.FC = () => {
               <span>SHIFT COMPLETED TODAY</span>
 
             </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/journal?autoSync=true')}
+              className="w-full sm:w-80 min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            >
+              <BookOpen className="w-4 h-4 text-white" />
+              <span>Write Today's Journal Entry ({status?.todayRecord?.netRenderedHours ? `${status.todayRecord.netRenderedHours.toFixed(1)}h` : '8.0h'})</span>
+            </button>
 
             {canResumeShift && (
 

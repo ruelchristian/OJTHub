@@ -28,7 +28,9 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Save
+  Save,
+  Award,
+  BookOpen
 } from 'lucide-react';
 import { downloadDtrCsv } from '../utils/dtrExport';
 
@@ -83,6 +85,29 @@ export const SupervisorPortal: React.FC = () => {
   const [editNetHours, setEditNetHours] = useState<string>('');
   const [editRemark, setEditRemark] = useState<string>('');
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
+
+  // Trainee Milestone Summary Modal State (for Teacher Evaluation)
+  const [traineeMilestoneModalOpen, setTraineeMilestoneModalOpen] = useState<boolean>(false);
+  const [traineeMilestoneHours, setTraineeMilestoneHours] = useState<number>(100);
+  const [traineeMilestoneLoading, setTraineeMilestoneLoading] = useState<boolean>(false);
+  const [traineeMilestoneText, setTraineeMilestoneText] = useState<string>('');
+  const [traineeMilestoneCopied, setTraineeMilestoneCopied] = useState<boolean>(false);
+
+  const handleViewTraineeMilestone = async (traineeId: string, milestoneHours: number) => {
+    setTraineeMilestoneHours(milestoneHours);
+    setTraineeMilestoneModalOpen(true);
+    setTraineeMilestoneLoading(true);
+    setTraineeMilestoneCopied(false);
+    try {
+      const res = await api.activities.getMilestoneSummary(milestoneHours, traineeId);
+      setTraineeMilestoneText(res.summaryContent);
+    } catch (err: any) {
+      alert(err.message || 'Failed to load trainee milestone summary.');
+      setTraineeMilestoneModalOpen(false);
+    } finally {
+      setTraineeMilestoneLoading(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -755,6 +780,37 @@ export const SupervisorPortal: React.FC = () => {
               </div>
             </div>
 
+            {/* Teacher Practicum Milestone Evaluation Bar */}
+            <div className="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Practicum Milestone Summaries:</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[100, 200, 300].map((mHours) => {
+                  const isReached = (selectedTrainee.renderedHours || 0) >= mHours;
+                  return (
+                    <button
+                      key={mHours}
+                      type="button"
+                      onClick={() => handleViewTraineeMilestone(selectedTrainee.traineeId, mHours)}
+                      className={`min-h-[28px] px-2.5 py-0.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer border ${
+                        isReached
+                          ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                          : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                      title={`Synthesize student's ${mHours}-hour journal entries into an evaluation narrative`}
+                    >
+                      <BookOpen className="w-3 h-3 text-amber-400" />
+                      <span>{mHours}h Report</span>
+                      {isReached && <Check className="w-3 h-3 text-emerald-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Manual Attendance Adjustment Sub-form */}
             {showManualModal && (
               <form onSubmit={handleCreateManualEntry} className="p-4 bg-indigo-950/40 border-b border-indigo-500/30 space-y-3 animate-fade-in">
@@ -1419,6 +1475,87 @@ export const SupervisorPortal: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Teacher Evaluation: Trainee Milestone Summary Modal */}
+      {traineeMilestoneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[85vh] space-y-4">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center border border-amber-500/30">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {traineeMilestoneHours}-Hour OJT Milestone Evaluation
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Trainee: {selectedTrainee?.fullName} • Synthesized from student journal entries
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTraineeMilestoneModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto pr-1">
+              {traineeMilestoneLoading ? (
+                <div className="p-12 text-center text-slate-400 space-y-2">
+                  <Clock className="w-7 h-7 animate-spin mx-auto text-amber-400" />
+                  <p className="text-xs font-semibold">Generating {traineeMilestoneHours}-Hour milestone evaluation report...</p>
+                </div>
+              ) : (
+                <textarea
+                  readOnly
+                  rows={14}
+                  value={traineeMilestoneText}
+                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 text-xs sm:text-sm font-mono text-slate-200 leading-relaxed focus:outline-none whitespace-pre-wrap resize-none"
+                />
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3 flex-wrap gap-2">
+              <span className="text-[11px] text-slate-400">
+                School Evaluation / CHED Practicum Rubric
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (traineeMilestoneText) {
+                      await navigator.clipboard.writeText(traineeMilestoneText);
+                      setTraineeMilestoneCopied(true);
+                      setTimeout(() => setTraineeMilestoneCopied(false), 2500);
+                    }
+                  }}
+                  disabled={traineeMilestoneLoading || !traineeMilestoneText}
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700 cursor-pointer disabled:opacity-40"
+                >
+                  {traineeMilestoneCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{traineeMilestoneCopied ? 'Copied!' : 'Copy for Grading'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTraineeMilestoneModalOpen(false)}
+                  className="min-h-[36px] px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

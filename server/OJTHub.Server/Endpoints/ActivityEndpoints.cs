@@ -124,6 +124,53 @@ public static class ActivityEndpoints
         .WithName("PolishTaskActivity")
         .WithTags("Activities");
 
+        group.MapPost("/milestone-summary", async (MilestoneSummaryRequest req, ClaimsPrincipal principal, OJTHubDbContext db, IGeminiService geminiService, CancellationToken ct) =>
+        {
+            var currentUserId = GetUserId(principal);
+            if (currentUserId == null) return Results.Unauthorized();
+
+            // Teachers/Supervisors can request on behalf of their student
+            var targetUserId = req.UserId ?? currentUserId.Value;
+
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == targetUserId, ct);
+            if (user == null) return Results.NotFound(new { message = "User not found" });
+
+            // Fetch student's activities in ascending order to map by cumulative hours
+            var activities = await db.ActivityLogs
+                .Where(a => a.UserId == targetUserId)
+                .OrderBy(a => a.Date)
+                .ThenBy(a => a.CreatedAt)
+                .ToListAsync(ct);
+
+            // Collect activities up to the milestone hours
+            decimal cumulative = 0;
+            var milestoneActivities = new List<ActivityLog>();
+            foreach (var act in activities)
+            {
+                milestoneActivities.Add(act);
+                cumulative += act.HoursSpent ?? 0;
+                if (req.MilestoneHours > 0 && cumulative >= req.MilestoneHours && milestoneActivities.Count >= 3)
+                {
+                    break;
+                }
+            }
+
+            var summary = await geminiService.GenerateMilestoneSummaryAsync(
+                req.MilestoneHours,
+                milestoneActivities,
+                user.FullName,
+                ct);
+
+            return Results.Ok(new MilestoneSummaryResponse(
+                req.MilestoneHours,
+                cumulative,
+                milestoneActivities.Count,
+                summary));
+        })
+        .RequireAuthorization()
+        .WithName("GenerateMilestoneSummary")
+        .WithTags("Activities");
+
         return group;
     }
 

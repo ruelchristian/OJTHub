@@ -400,6 +400,147 @@ public class GeminiService : IGeminiService
         }
     }
 
+    public async Task<string> GenerateMilestoneSummaryAsync(
+        int milestoneHours,
+        IEnumerable<ActivityLog> activities,
+        string studentName,
+        CancellationToken ct = default)
+    {
+        var apiKey = _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        var activityList = activities.ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"You are an assistant helping a university practicum coordinator and school teacher evaluate an OJT student's internship progress.");
+        sb.AppendLine($"Based on the following daily journal accomplishment logs, generate a comprehensive, reflective {milestoneHours}-Hour OJT Milestone Summary Report.");
+        sb.AppendLine($"\nTrainee: {studentName}");
+        sb.AppendLine($"Milestone Target: {milestoneHours} Hours");
+        sb.AppendLine($"Total Activity Logs Included: {activityList.Count}\n");
+
+        sb.AppendLine("### Logged Student Activities:");
+        if (activityList.Count == 0)
+        {
+            sb.AppendLine("- No specific daily logs available for this milestone.");
+        }
+        else
+        {
+            foreach (var act in activityList)
+            {
+                sb.AppendLine($"- Date: {act.Date:yyyy-MM-dd} | Category: {act.Category} | Task: {act.TaskTitle} ({act.HoursSpent ?? 0}h)");
+                if (!string.IsNullOrWhiteSpace(act.Details))
+                {
+                    sb.AppendLine($"  Accomplishment: {act.Details}");
+                }
+            }
+        }
+
+        sb.AppendLine("\nGUIDELINES:");
+        sb.AppendLine("1. Write in natural, articulate, professional human English. Sound like a genuine student describing their real journey.");
+        sb.AppendLine("2. STRICTLY FORBIDDEN: Corporate jargon and buzzwords (avoid 'spearheaded', 'leveraged synergies', 'operational deliverables', 'institutional framework', 'paradigms').");
+        sb.AppendLine("3. Format in clean Markdown with the following exact sections:");
+        sb.AppendLine($"# {milestoneHours}-Hour OJT Practicum Milestone Summary");
+        sb.AppendLine($"**Trainee:** {studentName} | **Milestone:** {milestoneHours} Hours Completed\n");
+        sb.AppendLine("## 1. Executive Milestone Summary");
+        sb.AppendLine("## 2. Key Accomplishments & Practical Skills Developed");
+        sb.AppendLine("## 3. Workplace Challenges Encountered & How They Were Resolved");
+        sb.AppendLine("## 4. Personal Reflection & Goals for the Next Training Period");
+        sb.AppendLine("4. Return ONLY the Markdown report text.");
+
+        var prompt = sb.ToString();
+
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY")
+        {
+            _logger.LogWarning("Gemini API key is not configured. Returning fallback milestone report.");
+            return GenerateFallbackMilestoneSummary(milestoneHours, activityList, studentName);
+        }
+
+        try
+        {
+            var model = _config["Gemini:Model"] ?? "gemini-1.5-flash";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                }
+            };
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(requestPayload),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.PostAsync(url, jsonContent, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError("Gemini API error ({StatusCode}): {Error}", response.StatusCode, err);
+                return GenerateFallbackMilestoneSummary(milestoneHours, activityList, studentName);
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(responseJson);
+
+            var root = doc.RootElement;
+            if (root.TryGetProperty("candidates", out var candidates) &&
+                candidates.GetArrayLength() > 0 &&
+                candidates[0].TryGetProperty("content", out var textContent) &&
+                textContent.TryGetProperty("parts", out var parts) &&
+                parts.GetArrayLength() > 0 &&
+                parts[0].TryGetProperty("text", out var textElement))
+            {
+                var text = textElement.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+
+            return GenerateFallbackMilestoneSummary(milestoneHours, activityList, studentName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to call Gemini API for milestone summary. Falling back to template.");
+            return GenerateFallbackMilestoneSummary(milestoneHours, activityList, studentName);
+        }
+    }
+
+    private static string GenerateFallbackMilestoneSummary(int milestoneHours, List<ActivityLog> activities, string studentName)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"# {milestoneHours}-Hour OJT Practicum Milestone Summary");
+        sb.AppendLine($"**Trainee:** {studentName} | **Milestone:** {milestoneHours} Hours Rendered\n");
+
+        sb.AppendLine("## 1. Executive Milestone Summary");
+        sb.AppendLine($"During this {milestoneHours}-hour training block, I completed my daily assignments, familiarized myself with company workflows, and built foundational workplace competencies.\n");
+
+        sb.AppendLine("## 2. Key Accomplishments & Practical Skills Developed");
+        if (activities.Count == 0)
+        {
+            sb.AppendLine("- Carried out assigned routine duties and documented daily activities.");
+        }
+        else
+        {
+            var topActivities = activities.Take(6);
+            foreach (var act in topActivities)
+            {
+                sb.AppendLine($"- **{act.TaskTitle}** ({act.Category}): {act.Details}");
+            }
+        }
+
+        sb.AppendLine("\n## 3. Workplace Challenges Encountered & How They Were Resolved");
+        sb.AppendLine("- Encountered practical software and workflow bottlenecks, which I resolved by reviewing technical references, consulting team members, and verifying functionality through testing.");
+
+        sb.AppendLine("\n## 4. Personal Reflection & Goals for the Next Training Period");
+        sb.AppendLine("- Improved my time management, task ownership, and workplace communication. For the upcoming hours, I aim to take on more complex tasks and contribute more independently to the team.");
+
+        return sb.ToString();
+    }
+
     private static string GenerateFallbackJournalPolish(string taskTitle, string? details, string category)
     {
         var title = string.IsNullOrWhiteSpace(taskTitle) ? "assigned tasks" : taskTitle.Trim();

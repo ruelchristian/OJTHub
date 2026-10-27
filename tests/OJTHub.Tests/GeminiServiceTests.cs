@@ -128,4 +128,44 @@ public class GeminiServiceTests
         // Assert
         Assert.AreEqual(draft, result);
     }
+
+    [TestMethod]
+    public async Task GenerateMilestoneSummaryAsync_NoApiKey_ReturnsStructuredMilestoneReport()
+    {
+        // Arrange
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            {"Gemini:ApiKey", ""}
+        };
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var httpClient = new HttpClient();
+        var logger = NullLogger<GeminiService>.Instance;
+        var service = new GeminiService(httpClient, configuration, logger);
+
+        var activities = new List<OJTHub.Server.Models.ActivityLog>
+        {
+            new()
+            {
+                TaskTitle = "Database optimization",
+                Category = "Development",
+                Details = "Indexed foreign keys and verified query performance.",
+                HoursSpent = 8.0m,
+                Date = DateOnly.FromDateTime(DateTime.UtcNow)
+            }
+        };
+
+        // Act
+        var result = await service.GenerateMilestoneSummaryAsync(100, activities, "Alex Intern");
+
+        // Assert
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result));
+        StringAssert.Contains(result, "100-Hour OJT Practicum Milestone Summary");
+        StringAssert.Contains(result, "Alex Intern");
+        StringAssert.Contains(result, "Database optimization");
+        StringAssert.DoesNotMatch(result, new System.Text.RegularExpressions.Regex("Spearheaded"), "Should not contain buzzwords");
+    }
 }

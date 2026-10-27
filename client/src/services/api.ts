@@ -471,6 +471,44 @@ export const api = {
       return {
         polishedDetails: `Completed work on ${title.toLowerCase()} for ${category.toLowerCase()}, documented the steps taken, and verified that everything works as expected.`
       };
+    },
+
+    async getMilestoneSummary(milestoneHours: number, userId?: string): Promise<{
+      milestoneHours: number;
+      totalHoursLogged: number;
+      activityCount: number;
+      summaryContent: string;
+    }> {
+      if (isGuestUser()) {
+        const all = guestStore.getActivities().sort((a, b) => a.date.localeCompare(b.date));
+        let cumulative = 0;
+        const matched = [];
+        for (const act of all) {
+          matched.push(act);
+          cumulative += act.hoursSpent || 0;
+          if (cumulative >= milestoneHours && matched.length >= 3) break;
+        }
+        return {
+          milestoneHours,
+          totalHoursLogged: cumulative,
+          activityCount: matched.length,
+          summaryContent: `# ${milestoneHours}-Hour OJT Milestone Summary\n\n**Milestone:** ${milestoneHours} Hours Rendered\n\n## 1. Executive Summary\nDuring this ${milestoneHours}-hour training block, assigned workplace duties and learning milestones were completed.\n\n## 2. Key Accomplishments\n${matched.map(m => `- **${m.taskTitle}** (${m.category}): ${m.details}`).join('\n')}\n\n## 3. Workplace Reflection\nConsistently developed practical technical competencies, adapted to workplace standards, and maintained reliable daily communication.`
+        };
+      }
+      const res = await fetch(`${API_BASE}/activities/milestone-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ milestoneHours, userId })
+      });
+      return handleResponse<{
+        milestoneHours: number;
+        totalHoursLogged: number;
+        activityCount: number;
+        summaryContent: string;
+      }>(res);
     }
   },
 
