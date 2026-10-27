@@ -44,7 +44,19 @@ import {
 
   X,
 
-  Send
+  Send,
+
+  MapPinOff,
+
+  Navigation,
+
+  HelpCircle,
+
+  Smartphone,
+
+  Lock,
+
+  RotateCcw
 
 } from 'lucide-react';
 
@@ -87,6 +99,19 @@ export const Dashboard: React.FC = () => {
   const [outsidePunchType, setOutsidePunchType] = useState<'in' | 'out' | null>(null);
 
   const [outsideReasonText, setOutsideReasonText] = useState<string>('');
+
+  const [showPermissionGuideModal, setShowPermissionGuideModal] = useState<boolean>(false);
+
+  const [requestingLocation, setRequestingLocation] = useState<boolean>(false);
+
+  const [selectedGuideTab, setSelectedGuideTab] = useState<'android' | 'ios' | 'desktop'>(() => {
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+      if (/Android/i.test(ua)) return 'android';
+    }
+    return 'desktop';
+  });
 
   const locationActiveRef = useRef<boolean>(true);
 
@@ -471,9 +496,22 @@ export const Dashboard: React.FC = () => {
 
   };
 
+  const handleTurnOnLocation = async () => {
+    setRequestingLocation(true);
+    setActionError(null);
+    try {
+      const granted = await geo.requestPermission();
+      if (!granted) {
+        setShowPermissionGuideModal(true);
+      }
+    } finally {
+      setRequestingLocation(false);
+    }
+  };
+
   const executePunch = async (punchType: 'in' | 'out', studentRemark?: string) => {
     if (geo.latitude === null || geo.longitude === null || geo.accuracy === null) {
-      setActionError('Location coordinates not acquired yet. Please allow location permissions.');
+      await handleTurnOnLocation();
       return;
     }
 
@@ -499,6 +537,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTimeIn = async () => {
+    if (geo.latitude === null || geo.longitude === null) {
+      await handleTurnOnLocation();
+      return;
+    }
     if (!isWithinGeofence) {
       setOutsidePunchType('in');
       setOutsideReasonText('');
@@ -509,6 +551,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTimeOut = async () => {
+    if (geo.latitude === null || geo.longitude === null) {
+      await handleTurnOnLocation();
+      return;
+    }
     if (!isWithinGeofence) {
       setOutsidePunchType('out');
       setOutsideReasonText('');
@@ -937,13 +983,85 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {geo.error && (
+        {(geo.error || geo.isPermissionDenied || (geo.latitude === null && !geo.loading)) && (
 
-          <div className="mt-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-300">
+          <div className="mt-3 bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200 animate-fade-in shadow-md">
 
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3">
 
-            <div>{geo.error}</div>
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+
+                <MapPinOff className="w-5 h-5" />
+
+              </div>
+
+              <div>
+
+                <div className="font-bold text-white text-sm flex items-center gap-2">
+
+                  <span>Location Access Disabled</span>
+
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold uppercase tracking-wider">Turn On GPS</span>
+
+                </div>
+
+                <div className="text-slate-300 mt-1 max-w-xl">
+
+                  {geo.error || 'Your GPS coordinates are needed to verify you are at your assigned workplace before clocking in.'}
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+
+              <button
+
+                type="button"
+
+                onClick={handleTurnOnLocation}
+
+                disabled={requestingLocation}
+
+                className="flex-1 sm:flex-initial min-h-[40px] px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 active:scale-95 text-white font-bold text-xs shadow-lg shadow-sky-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+
+              >
+
+                {requestingLocation ? (
+
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+
+                ) : (
+
+                  <Navigation className="w-4 h-4" />
+
+                )}
+
+                <span>Turn On Location</span>
+
+              </button>
+
+              <button
+
+                type="button"
+
+                onClick={() => setShowPermissionGuideModal(true)}
+
+                className="min-h-[40px] px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+
+                title="Step-by-step guide for your phone"
+
+              >
+
+                <HelpCircle className="w-4 h-4 text-sky-400" />
+
+                <span className="hidden xs:inline">Need Help?</span>
+
+              </button>
+
+            </div>
 
           </div>
 
@@ -1231,6 +1349,17 @@ export const Dashboard: React.FC = () => {
 
         )}
 
+        {geo.latitude === null && !geo.loading && (
+          <button
+            type="button"
+            onClick={handleTurnOnLocation}
+            className="mt-3 text-xs text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1.5 underline underline-offset-4 cursor-pointer"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            <span>Turn on location access to enable attendance punch</span>
+          </button>
+        )}
+
         <div className="mt-4 flex flex-col xs:flex-row items-center justify-center gap-1.5 xs:gap-4 text-[11px] sm:text-xs text-slate-400">
 
           <span className="flex items-center gap-1">
@@ -1472,6 +1601,189 @@ export const Dashboard: React.FC = () => {
                   <Send className="w-4 h-4" />
                 )}
                 <span>Confirm {outsidePunchType === 'in' ? 'Time-In' : 'Time-Out'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Permission Guide Modal */}
+      {showPermissionGuideModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden relative max-h-[95dvh] flex flex-col">
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-2xl bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0">
+                  <Navigation className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                    How to Turn On Location
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Your browser has location permission disabled. Follow these 3 simple steps:
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPermissionGuideModal(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Device Selector Tabs */}
+            <div className="px-5 sm:px-6 pt-4 pb-1 border-b border-slate-800/60 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedGuideTab('android')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  selectedGuideTab === 'android'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Android / Chrome</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedGuideTab('ios')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  selectedGuideTab === 'ios'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>iPhone / Safari</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedGuideTab('desktop')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  selectedGuideTab === 'desktop'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>PC / Laptop</span>
+              </button>
+            </div>
+
+            {/* Body Steps */}
+            <div className="p-5 sm:p-6 space-y-3.5 overflow-y-auto">
+              {selectedGuideTab === 'android' && (
+                <>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">1</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Tap the icon in the address bar</div>
+                      <div className="text-slate-400 mt-0.5">At the top of Chrome next to the website URL, tap the <strong>Lock (🔒)</strong> or <strong>Tune (🎚️)</strong> icon.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">2</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Tap Permissions &rarr; Location</div>
+                      <div className="text-slate-400 mt-0.5">Select <strong>Permissions</strong> and switch <strong>Location</strong> to <strong>Allow</strong>.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">3</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Tap "Reload & Re-Check"</div>
+                      <div className="text-slate-400 mt-0.5">Tap the blue button below to reload the app with GPS enabled.</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedGuideTab === 'ios' && (
+                <>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">1</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Tap the "aA" icon in Safari</div>
+                      <div className="text-slate-400 mt-0.5">In Safari's address bar (at the bottom or top), tap the <strong>aA</strong> or <strong>Lock (🔒)</strong> icon.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">2</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Website Settings &rarr; Location &rarr; Allow</div>
+                      <div className="text-slate-400 mt-0.5">Tap <strong>Website Settings</strong>, tap <strong>Location</strong>, and choose <strong>Allow</strong>.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">3</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Tap "Reload & Re-Check"</div>
+                      <div className="text-slate-400 mt-0.5">Tap the blue button below to refresh Safari and verify your attendance.</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedGuideTab === 'desktop' && (
+                <>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">1</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Click the icon left of the URL</div>
+                      <div className="text-slate-400 mt-0.5">Click the <strong>Padlock (🔒)</strong> or <strong>Tune sliders</strong> icon at the start of your browser address bar.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">2</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Switch Location to "Allow"</div>
+                      <div className="text-slate-400 mt-0.5">Toggle the <strong>Location</strong> switch to ON or select <strong>Allow</strong> from the dropdown.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 font-bold text-xs flex items-center justify-center shrink-0">3</div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-white">Click "Reload & Re-Check"</div>
+                      <div className="text-slate-400 mt-0.5">Click the button below to reload the console.</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-2">
+                <Info className="w-4 h-4 text-sky-400 shrink-0" />
+                <span>Tip: You can also tap "Try Prompt Again" to see if the browser displays the permission banner.</span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-800/80 bg-slate-900/60 flex flex-col xs:flex-row items-stretch xs:items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPermissionGuideModal(false);
+                  handleTurnOnLocation();
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Navigation className="w-3.5 h-3.5 text-sky-400" />
+                <span>Try Prompt Again</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 active:scale-95 text-xs font-bold text-white shadow-lg shadow-sky-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>I've Allowed It - Reload Page</span>
               </button>
             </div>
           </div>

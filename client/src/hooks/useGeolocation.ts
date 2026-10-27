@@ -7,6 +7,8 @@ interface GeolocationState {
   error: string | null;
   loading: boolean;
   isHighAccuracy: boolean;
+  isPermissionDenied: boolean;
+  permissionState: 'granted' | 'prompt' | 'denied' | 'unknown';
 }
 
 interface GeolocationOptions {
@@ -24,7 +26,9 @@ export function useGeolocation(options?: GeolocationOptions) {
     accuracy: null,
     error: null,
     loading: true,
-    isHighAccuracy: false
+    isHighAccuracy: false,
+    isPermissionDenied: false,
+    permissionState: 'unknown'
   });
 
   const lastCoordsRef = useRef<{ latitude: number; longitude: number; accuracy: number } | null>(null);
@@ -44,15 +48,19 @@ export function useGeolocation(options?: GeolocationOptions) {
       accuracy,
       error: null,
       loading: false,
-      isHighAccuracy: highAcc
+      isHighAccuracy: highAcc,
+      isPermissionDenied: false,
+      permissionState: 'granted'
     });
   }, []);
 
   const handleError = useCallback((err: GeolocationPositionError, _isHighAccAttempt: boolean) => {
     let message = 'Unable to retrieve location coordinates.';
+    let isDenied = false;
 
     if (err.code === err.PERMISSION_DENIED) {
-      message = 'Location access was denied. Please allow location permissions in your browser address bar (lock icon) to verify attendance.';
+      isDenied = true;
+      message = 'Location access is turned off or denied. Tap "Turn On Location" above to enable GPS for attendance tracking.';
     } else if (err.code === err.POSITION_UNAVAILABLE) {
       message = 'Location signal is currently unavailable. Please verify device location services are enabled.';
     } else if (err.code === err.TIMEOUT) {
@@ -67,7 +75,9 @@ export function useGeolocation(options?: GeolocationOptions) {
     setState(s => ({
       ...s,
       error: message,
-      loading: false
+      loading: false,
+      isPermissionDenied: isDenied || s.isPermissionDenied,
+      permissionState: isDenied ? 'denied' : s.permissionState
     }));
   }, []);
 
@@ -120,6 +130,64 @@ export function useGeolocation(options?: GeolocationOptions) {
     }
   }, [enableHighAccuracy, handleSuccess, handleError]);
 
+  const requestPermission = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        setState(s => ({
+          ...s,
+          error: 'Geolocation is not supported by your device or browser.',
+          loading: false
+        }));
+        resolve(false);
+        return;
+      }
+
+      setState(s => ({ ...s, loading: true, error: null }));
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          handleSuccess(pos, true);
+          resolve(true);
+        },
+        (err) => {
+          handleError(err, true);
+          resolve(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 0
+        }
+      );
+    });
+  }, [handleSuccess, handleError]);
+
+  // Monitor Permissions API status if supported
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'permissions' in navigator && navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+        setState(s => ({
+          ...s,
+          permissionState: status.state,
+          isPermissionDenied: status.state === 'denied'
+        }));
+
+        status.onchange = () => {
+          setState(s => ({
+            ...s,
+            permissionState: status.state,
+            isPermissionDenied: status.state === 'denied'
+          }));
+          if (status.state === 'granted') {
+            getLocation();
+          }
+        };
+      }).catch(() => {
+        // Fallback for browsers without geolocation permissions query support
+      });
+    }
+  }, [getLocation]);
+
   useEffect(() => {
     getLocation();
 
@@ -150,5 +218,5 @@ export function useGeolocation(options?: GeolocationOptions) {
     }
   }, [watch, enableHighAccuracy, getLocation, handleSuccess, handleError]);
 
-  return { ...state, refreshLocation: getLocation };
+  return { ...state, refreshLocation: getLocation, requestPermission };
 }
