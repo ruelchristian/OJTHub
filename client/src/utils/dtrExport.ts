@@ -122,7 +122,9 @@ export function downloadDtrCsv(options: {
       }
 
       statusStr = rec.isVerified ? 'VERIFIED' : 'PENDING APPROVAL';
-      remarksStr = rec.supervisorRemark || '';
+      const studentNote = rec.studentRemark ? `[Note: ${rec.studentRemark}]` : '';
+      const supervisorNote = rec.supervisorRemark || '';
+      remarksStr = [studentNote, supervisorNote].filter(Boolean).join(' | ');
     }
 
     const row = [

@@ -239,10 +239,14 @@ public static class SupervisorEndpoints
             if (year.HasValue) query = query.Where(a => a.Date.Year == year.Value);
             if (month.HasValue) query = query.Where(a => a.Date.Month == month.Value);
 
-            var records = await query
+            var rawRecords = await query
+                .OrderByDescending(a => a.Date)
+                .ToListAsync();
+
+            var records = rawRecords
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.TimeIn)
-                .ToListAsync();
+                .ToList();
 
             var dtos = records.Select(r => new AttendanceRecordDto(
                 r.Id, r.UserId, trainee.FullName, r.Date, r.TimeIn,
@@ -253,7 +257,8 @@ public static class SupervisorEndpoints
                 r.PerimeterLogs?.OrderBy(p => p.Timestamp).Select(p => new PerimeterLogDto(
                     p.Id, p.AttendanceRecordId, p.UserId, p.Timestamp, p.EventType,
                     p.Latitude, p.Longitude, p.DistanceMeters, p.GpsAccuracy, p.Note
-                )).ToList()
+                )).ToList(),
+                r.StudentRemark
             )).ToList();
 
             return Results.Ok(dtos);

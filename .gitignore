@@ -6,6 +6,7 @@ build/
 out/
 dev-dist/
 client/dev-dist/
+server/OJTHub.Server/wwwroot/
 
 ## Visual Studio / VS Code / JetBrains
 .vs/

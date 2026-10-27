@@ -83,7 +83,7 @@ export const guestStore = {
     };
   },
 
-  timeIn(latitude: number, longitude: number, accuracy: number): AttendanceRecord {
+  timeIn(latitude: number, longitude: number, accuracy: number, studentRemark?: string): AttendanceRecord {
     const settings = this.getSettings();
 
     // 1. GPS Accuracy Validation (Proposal Section 5.8)
@@ -101,9 +101,10 @@ export const guestStore = {
       settings.workplaceLongitude
     );
 
-    if (distance > settings.geofenceRadiusMeters) {
+    const isWithin = distance <= settings.geofenceRadiusMeters;
+    if (!isWithin && !studentRemark) {
       throw new Error(
-        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m.`
+        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
       );
     }
 
@@ -125,7 +126,8 @@ export const guestStore = {
       timeInLongitude: longitude,
       timeInDistance: distance,
       timeInGpsAccuracy: accuracy,
-      timeInWithinGeofence: true,
+      timeInWithinGeofence: isWithin,
+      studentRemark: studentRemark || undefined,
       lunchBreakMinutes: settings.defaultLunchMinutes,
       isVerified: false
     };
@@ -135,7 +137,7 @@ export const guestStore = {
     return newRecord;
   },
 
-  timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number): AttendanceRecord {
+  timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number, studentRemark?: string): AttendanceRecord {
     const settings = this.getSettings();
 
     // 1. GPS Accuracy Validation
@@ -153,9 +155,10 @@ export const guestStore = {
       settings.workplaceLongitude
     );
 
-    if (distance > settings.geofenceRadiusMeters) {
+    const isWithin = distance <= settings.geofenceRadiusMeters;
+    if (!isWithin && !studentRemark) {
       throw new Error(
-        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m.`
+        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
       );
     }
 
@@ -183,7 +186,10 @@ export const guestStore = {
       timeOutLongitude: longitude,
       timeOutDistance: distance,
       timeOutGpsAccuracy: accuracy,
-      timeOutWithinGeofence: true,
+      timeOutWithinGeofence: isWithin,
+      studentRemark: studentRemark
+        ? (targetRecord.studentRemark ? `${targetRecord.studentRemark} | Out: ${studentRemark}` : studentRemark)
+        : targetRecord.studentRemark,
       lunchBreakMinutes: lunchMinutes,
       netRenderedHours: netHours
     };

@@ -756,6 +756,16 @@ export const SupervisorPortal: React.FC = () => {
                           </div>
                         )}
 
+                        {r.studentRemark && (
+                          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200">
+                            <div className="flex items-center gap-1.5 font-bold text-amber-300 text-[11px] uppercase tracking-wider mb-1">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              <span>Trainee Outside Explanation</span>
+                            </div>
+                            <p className="text-slate-200 text-xs italic break-words">"{r.studentRemark}"</p>
+                          </div>
+                        )}
+
                         {r.supervisorRemark && (
                           <div className="text-[11px] text-slate-400 flex items-center gap-1 italic break-words">
                             <MessageSquare className="w-3 h-3 text-slate-500 shrink-0" />

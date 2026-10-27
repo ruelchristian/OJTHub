@@ -614,6 +614,13 @@ export const AttendanceHistory: React.FC = () => {
 
                     </div>
 
+                    {r.studentRemark && (
+                      <div className="mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-amber-300/90 italic flex items-center gap-1.5">
+                        <span className="font-semibold text-amber-400 not-italic">Note:</span>
+                        <span className="truncate">"{r.studentRemark}"</span>
+                      </div>
+                    )}
+
                   </div>
 
                 );
@@ -714,13 +721,27 @@ export const AttendanceHistory: React.FC = () => {
 
                           ) : (
 
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <div className="flex flex-col gap-0.5">
 
-                              <AlertCircle className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
 
-                              Outside ({r.timeInDistance}m)
+                                <AlertCircle className="w-3 h-3" />
 
-                            </span>
+                                Outside ({r.timeInDistance}m)
+
+                              </span>
+
+                              {r.studentRemark && (
+
+                                <span className="text-[10px] text-amber-300/80 italic max-w-[180px] truncate" title={r.studentRemark}>
+
+                                  "{r.studentRemark}"
+
+                                </span>
+
+                              )}
+
+                            </div>
 
                           )}
 

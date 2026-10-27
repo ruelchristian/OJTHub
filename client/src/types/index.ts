@@ -55,6 +55,7 @@ export interface AttendanceRecord {
   isVerified: boolean;
   verifiedAt?: string;
   supervisorRemark?: string;
+  studentRemark?: string;
   perimeterBreachCount?: number;
   perimeterLogs?: PerimeterLog[];
 }

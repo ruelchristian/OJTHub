@@ -4,7 +4,8 @@ public record TimeInRequest(
     decimal Latitude,
     decimal Longitude,
     decimal Accuracy,
-    DateTimeOffset? ClientTimestamp = null
+    DateTimeOffset? ClientTimestamp = null,
+    string? StudentRemark = null
 );
 
 public record TimeOutRequest(
@@ -12,7 +13,8 @@ public record TimeOutRequest(
     decimal Longitude,
     decimal Accuracy,
     int? CustomLunchMinutes = null,
-    DateTimeOffset? ClientTimestamp = null
+    DateTimeOffset? ClientTimestamp = null,
+    string? StudentRemark = null
 );
 
 public record PerimeterLogDto(
@@ -62,7 +64,8 @@ public record AttendanceRecordDto(
     DateTimeOffset? VerifiedAt,
     string? SupervisorRemark,
     int PerimeterBreachCount = 0,
-    List<PerimeterLogDto>? PerimeterLogs = null
+    List<PerimeterLogDto>? PerimeterLogs = null,
+    string? StudentRemark = null
 );
 
 public record AttendanceStatusResponse(

@@ -242,4 +242,36 @@ public class PerimeterAuditTests
         Assert.AreEqual("LocationRestored", record.PerimeterLogs[0].EventType);
         Assert.AreEqual(15.0m, record.PerimeterLogs[0].DistanceMeters);
     }
+
+    [TestMethod]
+    public void AttendanceRecord_StudentRemark_PersistsAndMapsToDto()
+    {
+        // Arrange
+        var record = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            TimeIn = DateTimeOffset.UtcNow.AddHours(-4),
+            TimeInLatitude = 14.605000m,
+            TimeInLongitude = 120.990000m,
+            TimeInDistance = 350.0m,
+            TimeInGpsAccuracy = 12.0m,
+            TimeInWithinGeofence = false,
+            StudentRemark = "Sent to client office in Makati for document pickup"
+        };
+
+        // Act: Map to DTO
+        var dto = new AttendanceRecordDto(
+            record.Id, record.UserId, "Student Trainee", record.Date, record.TimeIn,
+            record.TimeInLatitude, record.TimeInLongitude, record.TimeInDistance, record.TimeInGpsAccuracy, record.TimeInWithinGeofence,
+            record.TimeOut, record.TimeOutLatitude, record.TimeOutLongitude, record.TimeOutDistance, record.TimeOutGpsAccuracy, record.TimeOutWithinGeofence,
+            record.LunchBreakMinutes, record.NetRenderedHours, record.IsVerified, record.VerifiedAt, record.SupervisorRemark,
+            record.PerimeterBreachCount, null, record.StudentRemark
+        );
+
+        // Assert
+        Assert.AreEqual("Sent to client office in Makati for document pickup", dto.StudentRemark);
+        Assert.IsFalse(dto.TimeInWithinGeofence);
+    }
 }

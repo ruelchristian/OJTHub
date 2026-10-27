@@ -41,11 +41,11 @@ public class SupervisorCodeTests
     [DataRow("OJT-8K7MQ", true)]
     [DataRow("ojt-8k7mq", true)] // Normalization handles lowercase
     [DataRow("  OJT-9XYZ2  ", true)] // Normalization handles whitespace
-    [DataRow("OJT-12345", false)] // Contains '1' which is excluded to prevent confusion with 'I'
-    [DataRow("OJT-0ABCD", false)] // Contains '0' which is excluded to prevent confusion with 'O'
-    [DataRow("OJT-ABC", false)] // Too short
-    [DataRow("OJT-ABCDEF", false)] // Too long
-    [DataRow("XYZ-8K7MQ", false)] // Wrong prefix
+    [DataRow("COORD-1234", true)] // Coordinator code format (3-25 alphanumeric/hyphen)
+    [DataRow("LFCA411M179", true)]
+    [DataRow("AB", false)] // Too short (< 3 characters)
+    [DataRow("THIS-CODE-IS-DEFINITELY-WAY-TOO-LONG-FOR-SYSTEM", false)] // Too long (> 25 characters)
+    [DataRow("OJT-SPEC!AL", false)] // Invalid special character
     [DataRow("", false)]
     [DataRow(null, false)]
     public void IsValidFormat_ValidatesCodesCorrectly(string? input, bool expectedValid)

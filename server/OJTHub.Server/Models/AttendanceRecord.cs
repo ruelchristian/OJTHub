@@ -66,6 +66,9 @@ public class AttendanceRecord
     [MaxLength(255)]
     public string? SupervisorRemark { get; set; }
 
+    [MaxLength(500)]
+    public string? StudentRemark { get; set; }
+
     public int PerimeterBreachCount { get; set; } = 0;
 
     public List<PerimeterLog> PerimeterLogs { get; set; } = new();

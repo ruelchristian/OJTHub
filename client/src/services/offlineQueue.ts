@@ -6,6 +6,7 @@ export interface QueuedPunch {
   longitude: number;
   accuracy: number;
   customLunchMinutes?: number;
+  studentRemark?: string;
   timestamp: string; // ISO timestamp captured when user tapped button
   createdAt: number;
 }

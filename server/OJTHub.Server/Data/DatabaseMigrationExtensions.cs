@@ -51,6 +51,7 @@ public static class DatabaseMigrationExtensions
                     // Local SQLite or in-memory provider
                     logger.LogInformation("Non-PostgreSQL provider active ({Provider}): initializing schema...", db.Database.ProviderName);
                     await db.Database.EnsureCreatedAsync();
+                    await EnsureSchoolSchemaAndSampleDataAsync(db, logger);
                 }
 
                 logger.LogInformation("Database connection and schema initialization verified successfully.");
@@ -177,7 +178,19 @@ public static class DatabaseMigrationExtensions
                 await db.Database.ExecuteSqlRawAsync(@"
                     ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""SchoolName"" character varying(150);
                     ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Department"" character varying(100);
+                    ALTER TABLE ""AttendanceRecords"" ADD COLUMN IF NOT EXISTS ""StudentRemark"" character varying(500);
                 ");
+            }
+            else
+            {
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""AttendanceRecords"" ADD COLUMN ""StudentRemark"" TEXT NULL;");
+                }
+                catch
+                {
+                    // Column may already exist
+                }
             }
 
             // Seed sample teacher and student accounts if they don't already exist

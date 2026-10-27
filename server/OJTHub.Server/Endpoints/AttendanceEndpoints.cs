@@ -68,6 +68,7 @@ public static class AttendanceEndpoints
                 TimeInGpsAccuracy = req.Accuracy,
                 TimeInWithinGeofence = withinGeofence,
                 SupervisorRemark = accuracyRemark,
+                StudentRemark = !string.IsNullOrWhiteSpace(req.StudentRemark) ? req.StudentRemark.Trim() : null,
                 LunchBreakMinutes = setting.DefaultLunchMinutes
             };
 
@@ -145,6 +146,14 @@ public static class AttendanceEndpoints
             record.LunchBreakMinutes = lunchMinutes;
             record.NetRenderedHours = netHours;
 
+            if (!string.IsNullOrWhiteSpace(req.StudentRemark))
+            {
+                var trimmed = req.StudentRemark.Trim();
+                record.StudentRemark = string.IsNullOrWhiteSpace(record.StudentRemark)
+                    ? trimmed
+                    : $"{record.StudentRemark} | Time-out: {trimmed}";
+            }
+
             await db.SaveChangesAsync();
 
             var user = await db.Users.FindAsync(userId.Value);
@@ -160,13 +169,17 @@ public static class AttendanceEndpoints
             if (userId == null) return Results.Unauthorized();
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var record = await db.AttendanceRecords
+            var records = await db.AttendanceRecords
                 .Include(a => a.User)
                 .Include(a => a.PerimeterLogs)
-                .Where(a => a.UserId == userId.Value)
+                .Where(a => a.UserId == userId.Value && (a.Date == today || a.TimeOut == null))
+                .OrderByDescending(a => a.Date)
+                .ToListAsync();
+
+            var record = records
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.TimeIn)
-                .FirstOrDefaultAsync(a => a.Date == today || a.TimeOut == null);
+                .FirstOrDefault();
 
             var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var user = await db.Users.FindAsync(userId.Value);
@@ -213,10 +226,14 @@ public static class AttendanceEndpoints
                 query = query.Where(a => a.Date.Month == month.Value);
             }
 
-            var records = await query
+            var rawRecords = await query
+                .OrderByDescending(a => a.Date)
+                .ToListAsync();
+
+            var records = rawRecords
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.TimeIn)
-                .ToListAsync();
+                .ToList();
 
             var dtos = records.Select(r => ToDto(r, r.User?.FullName ?? "Trainee")).ToList();
             return Results.Ok(dtos);
@@ -362,7 +379,8 @@ public static class AttendanceEndpoints
                 p.DistanceMeters,
                 p.GpsAccuracy,
                 p.Note
-            )).ToList()
+            )).ToList(),
+            r.StudentRemark
         );
 
     private static Guid? GetUserId(ClaimsPrincipal principal)

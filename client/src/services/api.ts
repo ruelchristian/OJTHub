@@ -121,9 +121,9 @@ export const api = {
   },
 
   attendance: {
-    async timeIn(latitude: number, longitude: number, accuracy: number, clientTimestamp?: string): Promise<AttendanceRecord> {
+    async timeIn(latitude: number, longitude: number, accuracy: number, clientTimestamp?: string, studentRemark?: string): Promise<AttendanceRecord> {
       if (isGuestUser()) {
-        return guestStore.timeIn(latitude, longitude, accuracy);
+        return guestStore.timeIn(latitude, longitude, accuracy, studentRemark);
       }
       const punchTime = clientTimestamp || new Date().toISOString();
       try {
@@ -133,7 +133,7 @@ export const api = {
             'Content-Type': 'application/json',
             ...getAuthHeader()
           },
-          body: JSON.stringify({ latitude, longitude, accuracy, clientTimestamp: punchTime })
+          body: JSON.stringify({ latitude, longitude, accuracy, clientTimestamp: punchTime, studentRemark })
         });
         return await handleResponse<AttendanceRecord>(res);
       } catch (err: any) {
@@ -143,17 +143,18 @@ export const api = {
             latitude,
             longitude,
             accuracy,
+            studentRemark,
             timestamp: punchTime
           });
-          return guestStore.timeIn(latitude, longitude, accuracy);
+          return guestStore.timeIn(latitude, longitude, accuracy, studentRemark);
         }
         throw err;
       }
     },
 
-    async timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number, clientTimestamp?: string): Promise<AttendanceRecord> {
+    async timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number, clientTimestamp?: string, studentRemark?: string): Promise<AttendanceRecord> {
       if (isGuestUser()) {
-        return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes);
+        return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes, studentRemark);
       }
       const punchTime = clientTimestamp || new Date().toISOString();
       try {
@@ -163,7 +164,7 @@ export const api = {
             'Content-Type': 'application/json',
             ...getAuthHeader()
           },
-          body: JSON.stringify({ latitude, longitude, accuracy, customLunchMinutes, clientTimestamp: punchTime })
+          body: JSON.stringify({ latitude, longitude, accuracy, customLunchMinutes, clientTimestamp: punchTime, studentRemark })
         });
         return await handleResponse<AttendanceRecord>(res);
       } catch (err: any) {
@@ -174,9 +175,10 @@ export const api = {
             longitude,
             accuracy,
             customLunchMinutes,
+            studentRemark,
             timestamp: punchTime
           });
-          return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes);
+          return guestStore.timeOut(latitude, longitude, accuracy, customLunchMinutes, studentRemark);
         }
         throw err;
       }
@@ -199,7 +201,8 @@ export const api = {
                 latitude: punch.latitude,
                 longitude: punch.longitude,
                 accuracy: punch.accuracy,
-                clientTimestamp: punch.timestamp
+                clientTimestamp: punch.timestamp,
+                studentRemark: punch.studentRemark
               })
             });
             return res.ok;
@@ -215,7 +218,8 @@ export const api = {
                 longitude: punch.longitude,
                 accuracy: punch.accuracy,
                 customLunchMinutes: punch.customLunchMinutes,
-                clientTimestamp: punch.timestamp
+                clientTimestamp: punch.timestamp,
+                studentRemark: punch.studentRemark
               })
             });
             return res.ok;
