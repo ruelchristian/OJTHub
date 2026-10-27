@@ -179,6 +179,7 @@ public static class DatabaseMigrationExtensions
                     ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""SchoolName"" character varying(150);
                     ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Department"" character varying(100);
                     ALTER TABLE ""AttendanceRecords"" ADD COLUMN IF NOT EXISTS ""StudentRemark"" character varying(500);
+                    ALTER TABLE ""OjtSettings"" ADD COLUMN IF NOT EXISTS ""MaxDailyHours"" numeric(4,1) NOT NULL DEFAULT 10.0;
                 ");
             }
             else
@@ -186,6 +187,15 @@ public static class DatabaseMigrationExtensions
                 try
                 {
                     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""AttendanceRecords"" ADD COLUMN ""StudentRemark"" TEXT NULL;");
+                }
+                catch
+                {
+                    // Column may already exist
+                }
+
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""OjtSettings"" ADD COLUMN ""MaxDailyHours"" REAL NOT NULL DEFAULT 10.0;");
                 }
                 catch
                 {

@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: OjtSetting = {
   gpsAccuracyThreshold: 150,
   targetTotalHours: 486.0,
   dailyScheduleHours: 8.0,
+  maxDailyHours: 10.0,
   defaultLunchMinutes: 60
 };
 
@@ -183,7 +184,9 @@ export const guestStore = {
 
     const lunchMinutes = customLunchMinutes ?? settings.defaultLunchMinutes;
     const lunchHours = lunchMinutes / 60;
-    const netHours = Math.max(0, Math.round((durationHours - lunchHours) * 100) / 100);
+    const rawNet = Math.max(0, durationHours - lunchHours);
+    const maxCap = settings.maxDailyHours || 10.0;
+    const netHours = Math.round(Math.min(rawNet, maxCap) * 100) / 100;
 
     const updatedRecord: AttendanceRecord = {
       ...targetRecord,

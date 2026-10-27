@@ -98,6 +98,7 @@ public static class AuthEndpoints
                     GpsAccuracyThreshold = sSetting?.GpsAccuracyThreshold ?? 150,
                     TargetTotalHours = sSetting?.TargetTotalHours ?? 486.0m,
                     DailyScheduleHours = sSetting?.DailyScheduleHours ?? 8.0m,
+                    MaxDailyHours = sSetting?.MaxDailyHours ?? 10.0m,
                     DefaultLunchMinutes = sSetting?.DefaultLunchMinutes ?? 60
                 };
                 db.OjtSettings.Add(defaultSetting);

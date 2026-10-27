@@ -53,6 +53,7 @@ export const SupervisorPortal: React.FC = () => {
   const [cfgAccuracy, setCfgAccuracy] = useState<number>(150);
   const [cfgTargetHours, setCfgTargetHours] = useState<string>('486.0');
   const [cfgDailyHours, setCfgDailyHours] = useState<string>('8.0');
+  const [cfgMaxDailyHours, setCfgMaxDailyHours] = useState<string>('10.0');
   const [cfgLunchMins, setCfgLunchMins] = useState<number>(60);
   const [cfgApplyToAll, setCfgApplyToAll] = useState<boolean>(false);
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
@@ -98,6 +99,7 @@ export const SupervisorPortal: React.FC = () => {
     setCfgAccuracy(s?.gpsAccuracyThreshold || 250);
     setCfgTargetHours((s?.targetTotalHours || t.targetTotalHours || 486.0).toString());
     setCfgDailyHours((s?.dailyScheduleHours || 8.0).toString());
+    setCfgMaxDailyHours((s?.maxDailyHours || 10.0).toString());
     setCfgLunchMins(s?.defaultLunchMinutes || 60);
     setCfgApplyToAll(false);
   };
@@ -115,6 +117,7 @@ export const SupervisorPortal: React.FC = () => {
         gpsAccuracyThreshold: cfgAccuracy,
         targetTotalHours: parseFloat(cfgTargetHours) || 486.0,
         dailyScheduleHours: parseFloat(cfgDailyHours) || 8.0,
+        maxDailyHours: parseFloat(cfgMaxDailyHours) || 10.0,
         defaultLunchMinutes: cfgLunchMins
       };
 
@@ -860,7 +863,7 @@ export const SupervisorPortal: React.FC = () => {
               </div>
 
               {/* Hours Config */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">Target Total Hours</label>
                   <input
@@ -883,6 +886,23 @@ export const SupervisorPortal: React.FC = () => {
                     value={cfgDailyHours}
                     onChange={(e) => setCfgDailyHours(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Max Daily Hours (Cap)</span>
+                    <span className="text-[10px] text-amber-400 font-mono font-normal">e.g. 10.0</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    max="24"
+                    value={cfgMaxDailyHours}
+                    onChange={(e) => setCfgMaxDailyHours(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                    title="Maximum hours credited per day (e.g. 8h regular + 2h OT)"
                     required
                   />
                 </div>

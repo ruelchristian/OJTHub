@@ -27,6 +27,7 @@ export interface OjtSetting {
   gpsAccuracyThreshold: number;
   targetTotalHours: number;
   dailyScheduleHours: number;
+  maxDailyHours: number;
   defaultLunchMinutes: number;
   isLocked?: boolean;
   managedBySupervisorName?: string;

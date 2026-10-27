@@ -193,7 +193,8 @@ public static class SupervisorEndpoints
                         t.OjtSetting.DefaultLunchMinutes,
                         true,
                         t.FullName,
-                        supervisorId.Value
+                        supervisorId.Value,
+                        t.OjtSetting.MaxDailyHours
                     );
                 }
 
@@ -291,6 +292,7 @@ public static class SupervisorEndpoints
             trainee.OjtSetting.GpsAccuracyThreshold = req.GpsAccuracyThreshold > 0 ? req.GpsAccuracyThreshold : 250;
             trainee.OjtSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             trainee.OjtSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
+            trainee.OjtSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
             trainee.OjtSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -321,6 +323,7 @@ public static class SupervisorEndpoints
             supervisorSetting.GpsAccuracyThreshold = req.GpsAccuracyThreshold > 0 ? req.GpsAccuracyThreshold : 250;
             supervisorSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             supervisorSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
+            supervisorSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
             supervisorSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             supervisorSetting.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -350,6 +353,7 @@ public static class SupervisorEndpoints
                 trainee.OjtSetting.GpsAccuracyThreshold = req.GpsAccuracyThreshold > 0 ? req.GpsAccuracyThreshold : 250;
                 trainee.OjtSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
                 trainee.OjtSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
+                trainee.OjtSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
                 trainee.OjtSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
                 trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
             }

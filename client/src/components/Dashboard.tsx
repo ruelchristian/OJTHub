@@ -583,15 +583,19 @@ export const Dashboard: React.FC = () => {
 
   const scheduledHours = status?.settings?.dailyScheduleHours ?? 8.0;
 
+  const maxDailyHours = status?.settings?.maxDailyHours ?? 10.0;
+
   const lunchMinutes = status?.settings?.defaultLunchMinutes ?? 60;
 
   const grossElapsedHours = elapsedSeconds / 3600;
 
   const targetElapsedSeconds = (scheduledHours * 3600) + (lunchMinutes * 60);
 
+  const maxElapsedSeconds = (maxDailyHours * 3600) + (lunchMinutes * 60);
+
   const isTargetReached = !!(status?.hasActiveShift && elapsedSeconds >= targetElapsedSeconds);
 
-  const isLongShift = !!(status?.hasActiveShift && grossElapsedHours >= 12);
+  const isMaxCapReached = !!(status?.hasActiveShift && (elapsedSeconds >= maxElapsedSeconds || grossElapsedHours >= maxDailyHours));
 
   return (
 
@@ -1140,7 +1144,7 @@ export const Dashboard: React.FC = () => {
 
           <span className={
 
-            isLongShift ? 'text-rose-400 font-bold' :
+            isMaxCapReached ? 'text-rose-400 font-bold' :
 
             isTargetReached ? 'text-amber-400 font-bold' :
 
@@ -1148,9 +1152,9 @@ export const Dashboard: React.FC = () => {
 
           }>
 
-            {isLongShift ? 'Extended Shift (>12h)' :
+            {isMaxCapReached ? `Daily Cap Reached (${maxDailyHours}h Max)` :
 
-             isTargetReached ? `Target Reached (${scheduledHours}h Overtime)` :
+             isTargetReached ? `Target Reached (${scheduledHours}h + Overtime)` :
 
              status?.hasActiveShift ? 'Shift in Progress' : 'No Active Shift'}
 
@@ -1162,7 +1166,7 @@ export const Dashboard: React.FC = () => {
 
         <div className={`text-4xl xs:text-5xl sm:text-6xl font-black tracking-tight font-mono mb-2 select-none ${
 
-          isLongShift ? 'text-rose-400' :
+          isMaxCapReached ? 'text-rose-400' :
 
           isTargetReached ? 'text-amber-300' :
 
@@ -1176,7 +1180,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Overtime / Long Shift Notifications */}
 
-        {status?.hasActiveShift && isLongShift && (
+        {status?.hasActiveShift && isMaxCapReached && (
 
           <div className="w-full max-w-md mb-4 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 text-xs text-rose-200 flex items-start gap-2.5 text-left animate-fade-in">
 
@@ -1184,7 +1188,7 @@ export const Dashboard: React.FC = () => {
 
             <div>
 
-              <strong className="text-rose-100">Long Shift Alert (&gt;12 Hours):</strong> If you forgot to clock out at the end of your shift, tap <strong>TIME OUT</strong> now so your rendered hours are capped and flagged for supervisor verification.
+              <strong className="text-rose-100">Max Daily Shift Cap Reached ({maxDailyHours} hrs):</strong> You have reached your instructor's configured daily maximum limit ({scheduledHours}h normal + {(maxDailyHours - scheduledHours).toFixed(1)}h overtime). Additional hours will be capped at {maxDailyHours} hours. Please punch <strong>TIME OUT</strong> now!
 
             </div>
 
@@ -1192,7 +1196,7 @@ export const Dashboard: React.FC = () => {
 
         )}
 
-        {status?.hasActiveShift && isTargetReached && !isLongShift && (
+        {status?.hasActiveShift && isTargetReached && !isMaxCapReached && (
 
           <div className="w-full max-w-md mb-4 bg-amber-500/15 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5 text-left animate-fade-in">
 
@@ -1200,7 +1204,7 @@ export const Dashboard: React.FC = () => {
 
             <div>
 
-              <strong className="text-amber-100">Daily Target Reached ({scheduledHours} hrs):</strong> You have completed your scheduled daily hours for today. Remember to punch <strong>TIME OUT</strong> before leaving!
+              <strong className="text-amber-100">Daily Target Reached ({scheduledHours} hrs):</strong> Standard shift completed! You are now logging overtime up to the {maxDailyHours}h daily limit. Remember to punch <strong>TIME OUT</strong>!
 
             </div>
 

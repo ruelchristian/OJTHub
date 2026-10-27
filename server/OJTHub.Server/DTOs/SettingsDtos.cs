@@ -12,7 +12,8 @@ public record OjtSettingDto(
     int DefaultLunchMinutes,
     bool IsLocked = false,
     string? ManagedBySupervisorName = null,
-    Guid? SupervisorId = null
+    Guid? SupervisorId = null,
+    decimal MaxDailyHours = 10.0m
 );
 
 public record UpdateOjtSettingRequest(
@@ -23,5 +24,6 @@ public record UpdateOjtSettingRequest(
     int GpsAccuracyThreshold,
     decimal TargetTotalHours,
     decimal DailyScheduleHours,
-    int DefaultLunchMinutes
+    int DefaultLunchMinutes,
+    decimal MaxDailyHours = 10.0m
 );

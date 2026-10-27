@@ -37,7 +37,8 @@ public static class SettingsEndpoints
                         supervisorSetting.DefaultLunchMinutes,
                         true,
                         user.Supervisor?.FullName,
-                        user.SupervisorId
+                        user.SupervisorId,
+                        supervisorSetting.MaxDailyHours
                     ));
                 }
             }
@@ -66,7 +67,8 @@ public static class SettingsEndpoints
                 setting.DefaultLunchMinutes,
                 isLocked,
                 supervisorName,
-                user?.SupervisorId
+                user?.SupervisorId,
+                setting.MaxDailyHours
             ));
         })
         .RequireAuthorization()
@@ -105,6 +107,7 @@ public static class SettingsEndpoints
             setting.GpsAccuracyThreshold = req.GpsAccuracyThreshold > 0 ? req.GpsAccuracyThreshold : 250;
             setting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             setting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
+            setting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
             setting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             setting.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -131,6 +134,7 @@ public static class SettingsEndpoints
                     trainee.OjtSetting.GpsAccuracyThreshold = setting.GpsAccuracyThreshold;
                     trainee.OjtSetting.TargetTotalHours = setting.TargetTotalHours;
                     trainee.OjtSetting.DailyScheduleHours = setting.DailyScheduleHours;
+                    trainee.OjtSetting.MaxDailyHours = setting.MaxDailyHours;
                     trainee.OjtSetting.DefaultLunchMinutes = setting.DefaultLunchMinutes;
                     trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
                 }
@@ -150,7 +154,8 @@ public static class SettingsEndpoints
                 setting.DefaultLunchMinutes,
                 false,
                 null,
-                null
+                null,
+                setting.MaxDailyHours
             ));
         })
         .RequireAuthorization()

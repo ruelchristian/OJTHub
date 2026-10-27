@@ -101,4 +101,18 @@ public class AttendanceServiceTests
         // Assert: Must be capped at 16.00 hours
         Assert.AreEqual(16.00m, netHours, "Runaway shift duration exceeding cap must be limited to maxDailyHours.");
     }
+
+    [TestMethod]
+    public void CalculateNetHours_TenHourConfigurableCap_CapsAtTenHours()
+    {
+        // Arrange: Student shift running 16 hours (e.g. forgot to time out) with teacher 10.0h cap (8h regular + 2h OT)
+        var timeIn = new DateTimeOffset(2026, 9, 11, 8, 0, 0, TimeSpan.Zero);
+        var timeOut = timeIn.AddHours(16);
+
+        // Act: Apply 10-hour cap (8h regular + 2h overtime)
+        var netHours = _service.CalculateNetHours(timeIn, timeOut, 60, 10.0m);
+
+        // Assert: Must be capped at 10.00 hours
+        Assert.AreEqual(10.00m, netHours, "Shift exceeding teacher-configured 10h cap must be capped at 10.00 hours.");
+    }
 }

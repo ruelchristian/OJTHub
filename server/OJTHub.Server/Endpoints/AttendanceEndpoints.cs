@@ -140,12 +140,12 @@ public static class AttendanceEndpoints
                 now = req.ClientTimestamp.Value;
             }
             var lunchMinutes = req.CustomLunchMinutes ?? record.LunchBreakMinutes;
-            var maxCapHours = setting != null ? Math.Max(setting.DailyScheduleHours * 2m, 12m) : 16m;
+            var maxCapHours = setting != null && setting.MaxDailyHours > 0 ? setting.MaxDailyHours : 10.0m;
             var netHours = attendanceService.CalculateNetHours(record.TimeIn, now, lunchMinutes, maxCapHours);
 
-            if ((now - record.TimeIn).TotalHours >= 12.0 && string.IsNullOrWhiteSpace(record.SupervisorRemark))
+            if ((decimal)(now - record.TimeIn).TotalHours >= maxCapHours && string.IsNullOrWhiteSpace(record.SupervisorRemark))
             {
-                record.SupervisorRemark = "Extended shift (>12 hours logged; flagged for supervisor verification)";
+                record.SupervisorRemark = $"Reached maximum daily cap ({maxCapHours:F1}h limit set by teacher); excess time capped.";
             }
 
             if (req.Latitude == 0 && req.Longitude == 0)
@@ -224,7 +224,8 @@ public static class AttendanceEndpoints
                     setting.DailyScheduleHours, setting.DefaultLunchMinutes,
                     isLocked,
                     supervisor?.FullName,
-                    user?.SupervisorId
+                    user?.SupervisorId,
+                    setting.MaxDailyHours
                 ) : null
             ));
         })

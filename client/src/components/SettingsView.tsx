@@ -42,6 +42,8 @@ export const SettingsView: React.FC = () => {
 
   const [dailyHours, setDailyHours] = useState<string>('8.0');
 
+  const [maxDailyHours, setMaxDailyHours] = useState<string>('10.0');
+
   const [lunchMins, setLunchMins] = useState<number>(60);
 
 
@@ -81,6 +83,8 @@ export const SettingsView: React.FC = () => {
       setTargetHours(s.targetTotalHours.toString());
 
       setDailyHours(s.dailyScheduleHours.toString());
+
+      setMaxDailyHours((s.maxDailyHours || 10.0).toString());
 
       setLunchMins(s.defaultLunchMinutes);
 
@@ -241,6 +245,8 @@ export const SettingsView: React.FC = () => {
         targetTotalHours: parseFloat(targetHours),
 
         dailyScheduleHours: parseFloat(dailyHours),
+
+        maxDailyHours: parseFloat(maxDailyHours) || 10.0,
 
         defaultLunchMinutes: lunchMins
 
@@ -777,6 +783,36 @@ export const SettingsView: React.FC = () => {
               />
 
               <span className="text-[10px] text-slate-400 mt-0.5">Standard shift length (e.g. 8.0 hrs)</span>
+
+            </div>
+
+            <div>
+
+              <label className="block text-slate-400 font-medium mb-1">Max Daily Hours (Cap)</label>
+
+              <input
+
+                type="number"
+
+                step="0.5"
+
+                min="1"
+
+                max="24"
+
+                value={maxDailyHours}
+
+                disabled={isLocked}
+
+                onChange={(e) => setMaxDailyHours(e.target.value)}
+
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-slate-100 focus:outline-none focus:border-sky-500 ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+
+                required
+
+              />
+
+              <span className="text-[10px] text-slate-400 mt-0.5">Maximum credited hours per day (e.g. 8h regular + 2h overtime = 10.0h max)</span>
 
             </div>
 
