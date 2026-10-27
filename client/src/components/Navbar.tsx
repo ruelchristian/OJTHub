@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
 
     { id: 'history', path: '/history', label: 'Attendance', mobileLabel: 'Attendance', icon: Calendar },
 
-    { id: 'activities', path: '/activities', label: 'Journal & Reports', mobileLabel: 'Journal', icon: BookOpen },
+    { id: 'journal', path: '/journal', label: 'Daily Journal', mobileLabel: 'Journal', icon: BookOpen },
 
   ];
 
@@ -138,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
 
     if (tab.path === '/dashboard' && location.pathname === '/') return true;
 
-    if (tab.path === '/activities' && (location.pathname === '/reports' || location.pathname === '/journal')) return true;
+    if (tab.id === 'journal' && (location.pathname === '/journal' || location.pathname === '/activities' || location.pathname === '/reports')) return true;
 
     if (currentTab && currentTab === tab.id) return true;
 

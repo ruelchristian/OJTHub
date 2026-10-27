@@ -93,11 +93,11 @@ const MainLayout: React.FC = () => {
 
           <Route path="/history" element={<TraineeRoute><AttendanceHistory /></TraineeRoute>} />
 
-          <Route path="/activities" element={<TraineeRoute><JournalView /></TraineeRoute>} />
-
           <Route path="/journal" element={<TraineeRoute><JournalView /></TraineeRoute>} />
 
-          <Route path="/reports" element={<TraineeRoute><JournalView defaultTab="reports" /></TraineeRoute>} />
+          <Route path="/activities" element={<Navigate to="/journal" replace />} />
+
+          <Route path="/reports" element={<Navigate to="/journal" replace />} />
 
           <Route path="/documents" element={<TraineeRoute><DtrGenerator /></TraineeRoute>} />
 
