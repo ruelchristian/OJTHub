@@ -51,6 +51,7 @@ export const SupervisorPortal: React.FC = () => {
   // Trainee Settings Configuration Modal
   const [configuringTrainee, setConfiguringTrainee] = useState<TraineeSummary | null>(null);
   const [cfgCompany, setCfgCompany] = useState<string>('One Corporate Centre (OCC)');
+  const [cfgAddress, setCfgAddress] = useState<string>('');
   const [cfgLat, setCfgLat] = useState<number>(14.583916);
   const [cfgLng, setCfgLng] = useState<number>(121.063291);
   const [cfgRadius, setCfgRadius] = useState<number>(100);
@@ -116,6 +117,7 @@ export const SupervisorPortal: React.FC = () => {
     setConfiguringTrainee(t);
     const s = t.settings;
     setCfgCompany(s?.companyName || t.companyName || 'One Corporate Centre (OCC)');
+    setCfgAddress(s?.companyAddress || '');
     setCfgLat(s?.workplaceLatitude || 14.583916);
     setCfgLng(s?.workplaceLongitude || 121.063291);
     setCfgRadius(s?.geofenceRadiusMeters || 100);
@@ -136,6 +138,7 @@ export const SupervisorPortal: React.FC = () => {
     try {
       const payload = {
         companyName: cfgCompany,
+        companyAddress: cfgAddress,
         workplaceLatitude: cfgLat,
         workplaceLongitude: cfgLng,
         geofenceRadiusMeters: cfgRadius,
@@ -1160,6 +1163,19 @@ export const SupervisorPortal: React.FC = () => {
                 />
               </div>
 
+              {/* Host Company Street Address */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Host Company / Workplace Street Address</label>
+                <input
+                  type="text"
+                  value={cfgAddress}
+                  onChange={(e) => setCfgAddress(e.target.value)}
+                  placeholder="e.g. Julia Vargas Ave cor. Meralco Ave, Ortigas Center, Pasig City"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                />
+                <span className="text-[10px] text-slate-400 block">Auto-fills when searching or selecting on the map below</span>
+              </div>
+
               {/* Hours Config */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
@@ -1271,6 +1287,7 @@ export const SupervisorPortal: React.FC = () => {
                       setCfgLat(nLat);
                       setCfgLng(nLng);
                     }}
+                    onAddressChange={(addr) => setCfgAddress(addr)}
                     height="240px"
                   />
                 </div>

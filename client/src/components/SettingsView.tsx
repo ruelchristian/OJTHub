@@ -29,6 +29,7 @@ export const SettingsView: React.FC = () => {
 
 
   const [companyName, setCompanyName] = useState<string>('One Corporate Centre (OCC)');
+  const [companyAddress, setCompanyAddress] = useState<string>('');
 
   const [lat, setLat] = useState<number>(14.583916);
 
@@ -72,6 +73,7 @@ export const SettingsView: React.FC = () => {
       const s = await api.settings.get();
 
       setCompanyName(s.companyName);
+      setCompanyAddress(s.companyAddress || '');
 
       setLat(s.workplaceLatitude);
 
@@ -235,6 +237,7 @@ export const SettingsView: React.FC = () => {
       await api.settings.update({
 
         companyName,
+        companyAddress,
 
         workplaceLatitude: lat,
 
@@ -496,6 +499,30 @@ export const SettingsView: React.FC = () => {
 
             </div>
 
+            <div>
+
+              <label className="block text-slate-400 font-medium text-xs mb-1">Company / Workplace Street Address</label>
+
+              <input
+
+                type="text"
+
+                value={companyAddress}
+
+                onChange={(e) => setCompanyAddress(e.target.value)}
+
+                disabled={isLocked}
+
+                placeholder="e.g. Julia Vargas Ave cor. Meralco Ave, Ortigas Center, Pasig City"
+
+                className={`w-full min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-medium ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+
+              />
+
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Auto-updates when searching or clicking on the map below</span>
+
+            </div>
+
 
 
             {/* Interactive Visual Map */}
@@ -529,6 +556,8 @@ export const SettingsView: React.FC = () => {
                   deviceLongitude={geo.longitude}
 
                   onChange={handleMapLocationChange}
+
+                  onAddressChange={(addr) => { if (!isLocked) setCompanyAddress(addr); }}
 
                   onUseCurrentLocation={handleUseCurrentLocation}
 

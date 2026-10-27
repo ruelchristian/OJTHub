@@ -14,7 +14,8 @@ public record OjtSettingDto(
     string? ManagedBySupervisorName = null,
     Guid? SupervisorId = null,
     decimal MaxDailyHours = 10.0m,
-    bool AllowWeekendPunches = false
+    bool AllowWeekendPunches = false,
+    string? CompanyAddress = null
 );
 
 public record UpdateOjtSettingRequest(
@@ -28,5 +29,6 @@ public record UpdateOjtSettingRequest(
     int DefaultLunchMinutes,
     decimal MaxDailyHours = 10.0m,
     bool AllowWeekendPunches = false,
-    bool OverwriteWorkplaceLocation = false
+    bool OverwriteWorkplaceLocation = false,
+    string? CompanyAddress = null
 );

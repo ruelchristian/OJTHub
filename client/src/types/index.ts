@@ -21,6 +21,7 @@ export interface AuthResponse {
 export interface OjtSetting {
   id: string;
   companyName: string;
+  companyAddress?: string;
   workplaceLatitude: number;
   workplaceLongitude: number;
   geofenceRadiusMeters: number;

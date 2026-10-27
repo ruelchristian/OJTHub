@@ -461,5 +461,48 @@ public class SupervisorGovernanceTests
         Assert.IsNotNull(activeShift.TimeOut);
         Assert.AreEqual(8.0m, activeShift.NetRenderedHours);
     }
+
+    [TestMethod]
+    public void OjtSetting_IncludesCompanyAddress_WhenConfigured()
+    {
+        // Arrange
+        var setting = new OjtSetting
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            CompanyName = "One Corporate Centre (OCC)",
+            CompanyAddress = "Julia Vargas Ave cor. Meralco Ave, Ortigas Center, Pasig City",
+            WorkplaceLatitude = 14.583916m,
+            WorkplaceLongitude = 121.063291m,
+            GeofenceRadiusMeters = 100,
+            GpsAccuracyThreshold = 150,
+            TargetTotalHours = 486.0m,
+            DailyScheduleHours = 8.0m,
+            DefaultLunchMinutes = 60
+        };
+
+        // Act
+        var dto = new OjtSettingDto(
+            setting.Id,
+            setting.CompanyName,
+            setting.WorkplaceLatitude,
+            setting.WorkplaceLongitude,
+            setting.GeofenceRadiusMeters,
+            setting.GpsAccuracyThreshold,
+            setting.TargetTotalHours,
+            setting.DailyScheduleHours,
+            setting.DefaultLunchMinutes,
+            IsLocked: false,
+            ManagedBySupervisorName: null,
+            SupervisorId: null,
+            MaxDailyHours: 10.0m,
+            AllowWeekendPunches: false,
+            CompanyAddress: setting.CompanyAddress
+        );
+
+        // Assert
+        Assert.AreEqual("One Corporate Centre (OCC)", dto.CompanyName);
+        Assert.AreEqual("Julia Vargas Ave cor. Meralco Ave, Ortigas Center, Pasig City", dto.CompanyAddress);
+    }
 }
 

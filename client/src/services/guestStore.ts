@@ -16,6 +16,7 @@ const REPORTS_KEY = 'ojthub_guest_reports';
 const DEFAULT_SETTINGS: OjtSetting = {
   id: 'guest-settings',
   companyName: 'One Corporate Centre (OCC)',
+  companyAddress: 'Julia Vargas Ave cor. Meralco Ave, Ortigas Center, Pasig City',
   workplaceLatitude: 14.583916,
   workplaceLongitude: 121.063291,
   geofenceRadiusMeters: 100,

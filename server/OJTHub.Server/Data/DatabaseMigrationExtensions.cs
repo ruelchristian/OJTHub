@@ -181,6 +181,7 @@ public static class DatabaseMigrationExtensions
                     ALTER TABLE ""AttendanceRecords"" ADD COLUMN IF NOT EXISTS ""StudentRemark"" character varying(500);
                     ALTER TABLE ""OjtSettings"" ADD COLUMN IF NOT EXISTS ""MaxDailyHours"" numeric(4,1) NOT NULL DEFAULT 10.0;
                     ALTER TABLE ""OjtSettings"" ADD COLUMN IF NOT EXISTS ""AllowWeekendPunches"" boolean NOT NULL DEFAULT FALSE;
+                    ALTER TABLE ""OjtSettings"" ADD COLUMN IF NOT EXISTS ""CompanyAddress"" character varying(255);
                 ");
             }
             else
@@ -206,6 +207,15 @@ public static class DatabaseMigrationExtensions
                 try
                 {
                     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""OjtSettings"" ADD COLUMN ""AllowWeekendPunches"" INTEGER NOT NULL DEFAULT 0;");
+                }
+                catch
+                {
+                    // Column may already exist
+                }
+
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""OjtSettings"" ADD COLUMN ""CompanyAddress"" TEXT NULL;");
                 }
                 catch
                 {

@@ -9,6 +9,7 @@ interface WorkplaceMapPickerProps {
   deviceLatitude?: number | null;
   deviceLongitude?: number | null;
   onChange?: (lat: number, lng: number) => void;
+  onAddressChange?: (address: string) => void;
   onUseCurrentLocation?: () => void;
   height?: string;
   readOnly?: boolean;
@@ -98,6 +99,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
   deviceLatitude,
   deviceLongitude,
   onChange,
+  onAddressChange,
   onUseCurrentLocation,
   height = '340px',
   readOnly = false
@@ -123,12 +125,14 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
       );
       if (res.ok) {
         const data = await res.json();
-        setResolvedAddress(data.display_name || null);
+        const addr = data.display_name || null;
+        setResolvedAddress(addr);
+        if (addr) onAddressChange?.(addr);
       }
     } catch {
       // ignore network failure
     }
-  }, []);
+  }, [onAddressChange]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -336,6 +340,7 @@ export const WorkplaceMapPicker: React.FC<WorkplaceMapPickerProps> = ({
     const lng = parseFloat(place.lon);
     onChange?.(lat, lng);
     setResolvedAddress(place.display_name);
+    onAddressChange?.(place.display_name);
     setShowDropdown(false);
     setSearchQuery('');
 

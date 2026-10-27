@@ -18,6 +18,9 @@ public class OjtSetting
     [MaxLength(150)]
     public string CompanyName { get; set; } = "Partner Host Training Establishment";
 
+    [MaxLength(255)]
+    public string? CompanyAddress { get; set; } = "Julia Vargas Ave, Ortigas Center, Pasig, Metro Manila";
+
     [Column(TypeName = "decimal(9,6)")]
     public decimal WorkplaceLatitude { get; set; } = 14.583916m; // Default One Corporate Centre (OCC)
 

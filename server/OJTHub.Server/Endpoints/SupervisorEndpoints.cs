@@ -200,7 +200,8 @@ public static class SupervisorEndpoints
                         t.FullName,
                         supervisorId.Value,
                         t.OjtSetting.MaxDailyHours,
-                        t.OjtSetting.AllowWeekendPunches
+                        t.OjtSetting.AllowWeekendPunches,
+                        t.OjtSetting.CompanyAddress
                     );
                 }
 
@@ -292,6 +293,10 @@ public static class SupervisorEndpoints
             }
 
             trainee.OjtSetting.CompanyName = req.CompanyName?.Trim() ?? trainee.OjtSetting.CompanyName;
+            if (!string.IsNullOrWhiteSpace(req.CompanyAddress))
+            {
+                trainee.OjtSetting.CompanyAddress = req.CompanyAddress.Trim();
+            }
             trainee.OjtSetting.WorkplaceLatitude = req.WorkplaceLatitude;
             trainee.OjtSetting.WorkplaceLongitude = req.WorkplaceLongitude;
             trainee.OjtSetting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;
@@ -324,6 +329,10 @@ public static class SupervisorEndpoints
                 db.OjtSettings.Add(supervisorSetting);
             }
             supervisorSetting.CompanyName = req.CompanyName?.Trim() ?? supervisorSetting.CompanyName;
+            if (!string.IsNullOrWhiteSpace(req.CompanyAddress))
+            {
+                supervisorSetting.CompanyAddress = req.CompanyAddress.Trim();
+            }
             supervisorSetting.WorkplaceLatitude = req.WorkplaceLatitude;
             supervisorSetting.WorkplaceLongitude = req.WorkplaceLongitude;
             supervisorSetting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;
@@ -358,6 +367,10 @@ public static class SupervisorEndpoints
                 if (req.OverwriteWorkplaceLocation)
                 {
                     trainee.OjtSetting.CompanyName = req.CompanyName?.Trim() ?? trainee.OjtSetting.CompanyName;
+                    if (!string.IsNullOrWhiteSpace(req.CompanyAddress))
+                    {
+                        trainee.OjtSetting.CompanyAddress = req.CompanyAddress.Trim();
+                    }
                     trainee.OjtSetting.WorkplaceLatitude = req.WorkplaceLatitude;
                     trainee.OjtSetting.WorkplaceLongitude = req.WorkplaceLongitude;
                     trainee.OjtSetting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;

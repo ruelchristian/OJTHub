@@ -30,8 +30,6 @@ import {
 
   CheckCircle2,
 
-  Crosshair,
-
   Map as MapIcon,
 
   WifiOff,
@@ -56,7 +54,9 @@ import {
 
   Lock,
 
-  RotateCcw
+  RotateCcw,
+
+  Building2
 
 } from 'lucide-react';
 
@@ -85,6 +85,8 @@ export const Dashboard: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const [showRadarMap, setShowRadarMap] = useState<boolean>(false);
+  const [showCoordinates, setShowCoordinates] = useState<boolean>(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string>('');
 
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => offlineQueue.getTotalPendingCount());
 
@@ -275,6 +277,41 @@ export const Dashboard: React.FC = () => {
   const workplaceLat = status?.settings?.workplaceLatitude ?? 14.583916;
 
   const workplaceLng = status?.settings?.workplaceLongitude ?? 121.063291;
+
+  const companyName = status?.settings?.companyName || 'Host Training Establishment';
+
+  const companyAddress = status?.settings?.companyAddress || '';
+
+  useEffect(() => {
+    if (companyAddress) {
+      setResolvedAddress(companyAddress);
+      return;
+    }
+
+    const cacheKey = `ojt_addr_${workplaceLat.toFixed(4)}_${workplaceLng.toFixed(4)}`;
+    const cached = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
+    if (cached) {
+      setResolvedAddress(cached);
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${workplaceLat}&lon=${workplaceLng}&zoom=18&addressdetails=1`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!isMounted || !data) return;
+        const addr = data.display_name || '';
+        if (addr) {
+          setResolvedAddress(addr);
+          try {
+            sessionStorage.setItem(cacheKey, addr);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    return () => { isMounted = false; };
+  }, [companyAddress, workplaceLat, workplaceLng]);
 
   const allowedRadius = status?.settings?.geofenceRadiusMeters ?? 100;
 
@@ -897,25 +934,63 @@ export const Dashboard: React.FC = () => {
 
         <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
 
-          <div className="text-slate-300 flex items-center gap-2 min-w-0">
+          <div className="text-slate-300 flex items-center gap-2.5 min-w-0 flex-1">
 
-            <Crosshair className="w-4 h-4 text-sky-400 shrink-0" />
+            <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center shrink-0">
 
-            <span className="truncate">
+              <Building2 className="w-4 h-4 text-sky-400" />
 
-              Workplace Center: <strong className="text-white font-mono">{workplaceLat.toFixed(5)}, {workplaceLng.toFixed(5)}</strong>
+            </div>
 
-              {geo.latitude !== null && (
+            <div className="min-w-0 flex-1">
 
-                <span className="text-slate-400 ml-1.5 hidden lg:inline font-mono">
+              <div className="flex flex-wrap items-center gap-1.5 leading-tight">
 
-                  (Device: {geo.latitude.toFixed(5)}, {geo.longitude?.toFixed(5)})
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Host Workplace:</span>
+
+                <strong className="text-white font-bold text-xs sm:text-sm truncate">{companyName}</strong>
+
+                <button
+
+                  type="button"
+
+                  onClick={() => setShowCoordinates(!showCoordinates)}
+
+                  className="text-[10px] text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 px-2 py-0.5 rounded-full transition-colors cursor-pointer shrink-0 font-mono"
+
+                  title="Toggle GPS coordinates"
+
+                >
+
+                  {showCoordinates ? `${workplaceLat.toFixed(5)}, ${workplaceLng.toFixed(5)}` : '📍 GPS Coords'}
+
+                </button>
+
+              </div>
+
+              <div className="text-[11px] text-slate-400 truncate mt-0.5 flex items-center gap-1">
+
+                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+
+                <span className="truncate" title={resolvedAddress || 'Resolving workplace address...'}>
+
+                  {resolvedAddress || 'Julia Vargas Ave, Ortigas Center, Pasig City'}
 
                 </span>
 
-              )}
+                {geo.latitude !== null && showCoordinates && (
 
-            </span>
+                  <span className="text-slate-400 font-mono text-[10px] ml-1 shrink-0">
+
+                    (Your Device: {geo.latitude.toFixed(5)}, {geo.longitude?.toFixed(5)})
+
+                  </span>
+
+                )}
+
+              </div>
+
+            </div>
 
           </div>
 

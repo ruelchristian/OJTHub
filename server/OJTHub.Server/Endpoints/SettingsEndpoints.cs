@@ -26,6 +26,7 @@ public static class SettingsEndpoints
                 var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
 
                 var companyName = traineeSetting?.CompanyName ?? supervisorSetting?.CompanyName ?? "Partner Host Establishment";
+                var companyAddress = traineeSetting?.CompanyAddress ?? supervisorSetting?.CompanyAddress ?? "Julia Vargas Ave, Ortigas Center, Pasig, Metro Manila";
                 var lat = traineeSetting?.WorkplaceLatitude ?? supervisorSetting?.WorkplaceLatitude ?? 14.583916m;
                 var lng = traineeSetting?.WorkplaceLongitude ?? supervisorSetting?.WorkplaceLongitude ?? 121.063291m;
                 var radius = traineeSetting?.GeofenceRadiusMeters ?? supervisorSetting?.GeofenceRadiusMeters ?? 100;
@@ -50,7 +51,8 @@ public static class SettingsEndpoints
                     user.Supervisor?.FullName,
                     user.SupervisorId,
                     maxDaily,
-                    allowWeekend
+                    allowWeekend,
+                    companyAddress
                 ));
             }
 
@@ -80,7 +82,8 @@ public static class SettingsEndpoints
                 supervisorName,
                 user?.SupervisorId,
                 setting.MaxDailyHours,
-                setting.AllowWeekendPunches
+                setting.AllowWeekendPunches,
+                setting.CompanyAddress
             ));
         })
         .RequireAuthorization()
@@ -113,6 +116,10 @@ public static class SettingsEndpoints
             }
 
             setting.CompanyName = req.CompanyName?.Trim() ?? setting.CompanyName;
+            if (!string.IsNullOrWhiteSpace(req.CompanyAddress))
+            {
+                setting.CompanyAddress = req.CompanyAddress.Trim();
+            }
             setting.WorkplaceLatitude = req.WorkplaceLatitude;
             setting.WorkplaceLongitude = req.WorkplaceLongitude;
             setting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;
@@ -144,6 +151,7 @@ public static class SettingsEndpoints
                     if (req.OverwriteWorkplaceLocation)
                     {
                         trainee.OjtSetting.CompanyName = setting.CompanyName;
+                        trainee.OjtSetting.CompanyAddress = setting.CompanyAddress;
                         trainee.OjtSetting.WorkplaceLatitude = setting.WorkplaceLatitude;
                         trainee.OjtSetting.WorkplaceLongitude = setting.WorkplaceLongitude;
                         trainee.OjtSetting.GeofenceRadiusMeters = setting.GeofenceRadiusMeters;
@@ -175,7 +183,8 @@ public static class SettingsEndpoints
                 null,
                 null,
                 setting.MaxDailyHours,
-                setting.AllowWeekendPunches
+                setting.AllowWeekendPunches,
+                setting.CompanyAddress
             ));
         })
         .RequireAuthorization()
