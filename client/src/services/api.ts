@@ -509,6 +509,52 @@ export const api = {
         activityCount: number;
         summaryContent: string;
       }>(res);
+    },
+
+    async submitMilestone(milestoneHours: number, summaryContent: string, notes?: string): Promise<{
+      id: string;
+      userId: string;
+      milestoneHours: number;
+      summaryContent: string;
+      submittedAt: string;
+    }> {
+      if (isGuestUser()) {
+        return {
+          id: 'guest-' + Date.now(),
+          userId: 'guest',
+          milestoneHours,
+          summaryContent,
+          submittedAt: new Date().toISOString()
+        };
+      }
+      const res = await fetch(`${API_BASE}/activities/submit-milestone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ milestoneHours, summaryContent, notes })
+      });
+      return handleResponse(res);
+    },
+
+    async getSubmittedMilestones(userId?: string): Promise<{
+      id: string;
+      userId: string;
+      milestoneHours: number;
+      summaryContent: string;
+      submittedAt: string;
+    }[]> {
+      if (isGuestUser()) {
+        return [];
+      }
+      const url = userId
+        ? `${API_BASE}/activities/submitted-milestones?userId=${encodeURIComponent(userId)}`
+        : `${API_BASE}/activities/submitted-milestones`;
+      const res = await fetch(url, {
+        headers: getAuthHeader()
+      });
+      return handleResponse(res);
     }
   },
 

@@ -9,6 +9,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { WorkplaceMapPicker } from './WorkplaceMapPicker';
 
 import { Settings, MapPin, Target, Check, Save, ChevronDown, ChevronUp, Layers, ShieldAlert, Link as LinkIcon, Unlink, Lock } from 'lucide-react';
+import { TARGET_HOUR_PRESETS } from '../utils/milestones';
 
 
 
@@ -787,7 +788,29 @@ export const SettingsView: React.FC = () => {
 
               />
 
-              <span className="text-[10px] text-slate-400 mt-0.5">e.g., 300, 486, or 600 hours</span>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {TARGET_HOUR_PRESETS.map((p) => {
+                  const isSelected = parseFloat(targetHours) === p.hours;
+                  return (
+                    <button
+                      key={p.hours}
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() => setTargetHours(p.hours.toFixed(1))}
+                      className={`min-h-[26px] px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all border ${
+                        isSelected
+                          ? 'bg-sky-500/20 text-sky-300 border-sky-500/50 shadow-sm'
+                          : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-700/80'
+                      } ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                      title={`${p.label} - ${p.desc}`}
+                    >
+                      <span>{p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span className="text-[10px] text-slate-400 mt-1 block">e.g., 243, 300, 486, 500, or 600 hours</span>
 
             </div>
 

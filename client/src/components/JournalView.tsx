@@ -23,8 +23,10 @@ import {
   Zap, 
   Copy, 
   Award,
-  ChevronRight
+  ChevronRight,
+  Send
 } from 'lucide-react';
+import { getDynamicMilestones } from '../utils/milestones';
 
 export const JournalView: React.FC = () => {
   const { user } = useAuth();
@@ -61,23 +63,33 @@ export const JournalView: React.FC = () => {
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewPdfName, setPreviewPdfName] = useState<string>('');
 
-  // Feature 6: Milestone Summary State (per 100/200/300h)
+  // Feature 6: Milestone Summary State & Teacher Submissions
   const [milestoneModalOpen, setMilestoneModalOpen] = useState<boolean>(false);
   const [selectedMilestone, setSelectedMilestone] = useState<number>(100);
   const [milestoneLoading, setMilestoneLoading] = useState<boolean>(false);
   const [milestoneSummaryText, setMilestoneSummaryText] = useState<string>('');
   const [milestoneCopied, setMilestoneCopied] = useState<boolean>(false);
+  const [submittedMilestones, setSubmittedMilestones] = useState<{
+    id: string;
+    milestoneHours: number;
+    summaryContent: string;
+    submittedAt: string;
+  }[]>([]);
+  const [submittingMilestone, setSubmittingMilestone] = useState<boolean>(false);
+  const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null);
 
   const loadActivities = async () => {
     setLoading(true);
     try {
-      const [data, settingsData, statusData] = await Promise.all([
+      const [data, settingsData, statusData, submittedList] = await Promise.all([
         api.activities.list(),
         api.settings.get().catch(() => null),
-        api.attendance.getStatus().catch(() => null)
+        api.attendance.getStatus().catch(() => null),
+        api.activities.getSubmittedMilestones().catch(() => [])
       ]);
       setActivities(data);
       if (settingsData) setSetting(settingsData);
+      if (submittedList) setSubmittedMilestones(submittedList);
 
       // Detect today's shift hours from attendance status
       if (statusData?.todayRecord) {
@@ -387,7 +399,7 @@ export const JournalView: React.FC = () => {
     setPreviewPdfName(fileName);
   };
 
-  // Feature 6: Milestone Summaries (100h / 200h / 300h)
+  // Feature 6: Milestone Summaries & Teacher Submissions
   const totalJournalHours = activities.reduce((acc, a) => acc + (a.hoursSpent || 0), 0);
 
   const handleOpenMilestone = async (hours: number) => {
@@ -395,6 +407,22 @@ export const JournalView: React.FC = () => {
     setMilestoneModalOpen(true);
     setMilestoneLoading(true);
     setMilestoneCopied(false);
+    setSubmitSuccessMessage(null);
+
+    const existingSubmission = submittedMilestones.find((s) => s.milestoneHours === hours);
+    if (existingSubmission) {
+      setSubmitSuccessMessage(
+        `Submitted to teacher on ${new Date(existingSubmission.submittedAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })}`
+      );
+      setMilestoneSummaryText(existingSubmission.summaryContent);
+      setMilestoneLoading(false);
+      return;
+    }
+
     try {
       const res = await api.activities.getMilestoneSummary(hours);
       setMilestoneSummaryText(res.summaryContent);
@@ -404,6 +432,32 @@ export const JournalView: React.FC = () => {
       );
     } finally {
       setMilestoneLoading(false);
+    }
+  };
+
+  const handleSubmitMilestone = async () => {
+    if (!milestoneSummaryText) return;
+
+    // Check if trainee has a teacher linked (non-blocking informative notification)
+    const hasTeacher = Boolean(user?.supervisorId || setting?.managedBySupervisorName);
+    if (!hasTeacher) {
+      alert(
+        "No teacher is linked yet! If your practicum professor provided a supervisor code, you can link it under Settings.\n\nYou can also copy or export your summary anytime — no teacher link is required."
+      );
+      return;
+    }
+
+    setSubmittingMilestone(true);
+    try {
+      await api.activities.submitMilestone(selectedMilestone, milestoneSummaryText);
+      const updated = await api.activities.getSubmittedMilestones().catch(() => []);
+      setSubmittedMilestones(updated);
+      setSubmitSuccessMessage("Submitted to teacher for review!");
+      setTimeout(() => setSubmitSuccessMessage(null), 4000);
+    } catch (err: any) {
+      alert(err.message || "Failed to submit milestone report to teacher.");
+    } finally {
+      setSubmittingMilestone(false);
     }
   };
 
@@ -461,37 +515,70 @@ export const JournalView: React.FC = () => {
           </div>
         </div>
 
-        {/* Feature 6: Milestone Summaries Bar (100h / 200h / 300h) */}
+        {/* Feature 6: Dynamic Milestone Summaries Bar */}
         <div className="mt-4 pt-3.5 border-t border-slate-800/80">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
               <Award className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Teacher Milestone Summaries:</span>
+              <span>Practicum Milestone Summaries ({setting?.targetTotalHours || 486}h Target):</span>
               <span className="text-[11px] text-slate-400 font-normal hidden md:inline">
-                Synthesized from your journal entries for grading rubrics
+                Synthesized from your journal entries
               </span>
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">
-              {[100, 200, 300].map((mHours) => {
-                const isReached = totalJournalHours >= mHours;
+              {getDynamicMilestones(setting?.targetTotalHours || 486).map((m) => {
+                const isReached = totalJournalHours >= m.hours;
+                const isSubmitted = submittedMilestones.some((s) => s.milestoneHours === m.hours);
                 return (
                   <button
-                    key={mHours}
+                    key={m.hours}
                     type="button"
-                    onClick={() => handleOpenMilestone(mHours)}
+                    onClick={() => handleOpenMilestone(m.hours)}
                     className={`min-h-[32px] px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border ${
-                      isReached
+                      isSubmitted
+                        ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-sm'
+                        : isReached
                         ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
                         : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-700/80'
                     }`}
+                    title={
+                      isSubmitted
+                        ? `Submitted report for ${m.label}`
+                        : `Generate ${m.label} narrative from your journal entries`
+                    }
                   >
-                    <span>{mHours}h Milestone</span>
-                    {isReached && <Check className="w-3 h-3 text-emerald-400" />}
-                    <ChevronRight className="w-3 h-3 text-slate-500" />
+                    <span>{m.label}</span>
+                    {isSubmitted ? (
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded font-bold uppercase tracking-tight">
+                        Submitted
+                      </span>
+                    ) : isReached ? (
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 text-slate-500" />
+                    )}
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const val = prompt('Enter custom milestone hours (e.g. 150):');
+                  if (val) {
+                    const num = parseInt(val, 10);
+                    if (num > 0) {
+                      handleOpenMilestone(num);
+                    }
+                  }
+                }}
+                className="min-h-[32px] px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                title="Generate narrative for any custom hour mark"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Custom Hour</span>
+              </button>
             </div>
           </div>
         </div>
@@ -817,6 +904,12 @@ export const JournalView: React.FC = () => {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto pr-1">
+              {submitSuccessMessage && (
+                <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl px-3.5 py-2 text-xs text-emerald-300 flex items-center gap-2 mb-3">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-semibold">{submitSuccessMessage}</span>
+                </div>
+              )}
               {milestoneLoading ? (
                 <div className="p-12 text-center text-slate-400 space-y-2">
                   <Sparkles className="w-7 h-7 animate-spin mx-auto text-amber-400" />
@@ -838,7 +931,7 @@ export const JournalView: React.FC = () => {
                 Total Rendered: {totalJournalHours.toFixed(1)} hrs
               </span>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={handleCopyMilestone}
@@ -851,8 +944,29 @@ export const JournalView: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={handleSubmitMilestone}
+                  disabled={milestoneLoading || !milestoneSummaryText || submittingMilestone}
+                  className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer disabled:opacity-40 active:scale-95 ${
+                    submittedMilestones.some((s) => s.milestoneHours === selectedMilestone)
+                      ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-sm'
+                  }`}
+                  title="Submit internship activity report to your teacher"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>
+                    {submittingMilestone
+                      ? 'Submitting...'
+                      : submittedMilestones.some((s) => s.milestoneHours === selectedMilestone)
+                      ? 'Resubmit to Teacher'
+                      : 'Submit to Teacher'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setMilestoneModalOpen(false)}
-                  className="min-h-[36px] px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer"
+                  className="min-h-[36px] px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold transition-all border border-slate-700 cursor-pointer"
                 >
                   Close
                 </button>

@@ -49,3 +49,17 @@ public record MilestoneSummaryResponse(
     string SummaryContent
 );
 
+public record SubmitMilestoneRequest(
+    int MilestoneHours,
+    string SummaryContent,
+    string? Notes = null
+);
+
+public record SubmittedMilestoneDto(
+    Guid Id,
+    Guid UserId,
+    int MilestoneHours,
+    string SummaryContent,
+    DateTimeOffset SubmittedAt
+);
+

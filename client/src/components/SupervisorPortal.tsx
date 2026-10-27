@@ -33,6 +33,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { downloadDtrCsv } from '../utils/dtrExport';
+import { getDynamicMilestones, TARGET_HOUR_PRESETS } from '../utils/milestones';
 
 export const SupervisorPortal: React.FC = () => {
   const { user } = useAuth();
@@ -92,12 +93,48 @@ export const SupervisorPortal: React.FC = () => {
   const [traineeMilestoneLoading, setTraineeMilestoneLoading] = useState<boolean>(false);
   const [traineeMilestoneText, setTraineeMilestoneText] = useState<string>('');
   const [traineeMilestoneCopied, setTraineeMilestoneCopied] = useState<boolean>(false);
+  const [traineeSubmittedMilestones, setTraineeSubmittedMilestones] = useState<{
+    id: string;
+    milestoneHours: number;
+    summaryContent: string;
+    submittedAt: string;
+  }[]>([]);
+  const [traineeSubmissionInfo, setTraineeSubmissionInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedTrainee) {
+      api.activities.getSubmittedMilestones(selectedTrainee.traineeId)
+        .then(setTraineeSubmittedMilestones)
+        .catch(() => setTraineeSubmittedMilestones([]));
+    } else {
+      setTraineeSubmittedMilestones([]);
+    }
+  }, [selectedTrainee?.traineeId]);
 
   const handleViewTraineeMilestone = async (traineeId: string, milestoneHours: number) => {
     setTraineeMilestoneHours(milestoneHours);
     setTraineeMilestoneModalOpen(true);
     setTraineeMilestoneLoading(true);
     setTraineeMilestoneCopied(false);
+
+    // If trainee already submitted this milestone report, load it directly
+    const submitted = traineeSubmittedMilestones.find((s) => s.milestoneHours === milestoneHours);
+    if (submitted) {
+      setTraineeSubmissionInfo(
+        `Submitted by student on ${new Date(submitted.submittedAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`
+      );
+      setTraineeMilestoneText(submitted.summaryContent);
+      setTraineeMilestoneLoading(false);
+      return;
+    }
+
+    setTraineeSubmissionInfo(null);
     try {
       const res = await api.activities.getMilestoneSummary(milestoneHours, traineeId);
       setTraineeMilestoneText(res.summaryContent);
@@ -784,30 +821,61 @@ export const SupervisorPortal: React.FC = () => {
             <div className="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
                 <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Practicum Milestone Summaries:</span>
+                <span>Internship Activity Milestones ({selectedTrainee.targetTotalHours || 486}h Target):</span>
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap">
-                {[100, 200, 300].map((mHours) => {
-                  const isReached = (selectedTrainee.renderedHours || 0) >= mHours;
+                {getDynamicMilestones(selectedTrainee.targetTotalHours || 486).map((m) => {
+                  const isReached = (selectedTrainee.renderedHours || 0) >= m.hours;
+                  const submitted = traineeSubmittedMilestones.find((s) => s.milestoneHours === m.hours);
                   return (
                     <button
-                      key={mHours}
+                      key={m.hours}
                       type="button"
-                      onClick={() => handleViewTraineeMilestone(selectedTrainee.traineeId, mHours)}
+                      onClick={() => handleViewTraineeMilestone(selectedTrainee.traineeId, m.hours)}
                       className={`min-h-[28px] px-2.5 py-0.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer border ${
-                        isReached
+                        submitted
+                          ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-sm'
+                          : isReached
                           ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
                           : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 border-slate-700'
                       }`}
-                      title={`Synthesize student's ${mHours}-hour journal entries into an evaluation narrative`}
+                      title={
+                        submitted
+                          ? `Submitted by student on ${new Date(submitted.submittedAt).toLocaleDateString()}`
+                          : `Review student's ${m.label} narrative`
+                      }
                     >
-                      <BookOpen className="w-3 h-3 text-amber-400" />
-                      <span>{mHours}h Report</span>
-                      {isReached && <Check className="w-3 h-3 text-emerald-400" />}
+                      <BookOpen className={`w-3 h-3 ${submitted ? 'text-emerald-400' : 'text-amber-400'}`} />
+                      <span>{m.label}</span>
+                      {submitted ? (
+                        <span className="text-[9px] bg-emerald-500/25 text-emerald-300 px-1 py-0.2 rounded font-bold uppercase tracking-tight">
+                          Submitted
+                        </span>
+                      ) : isReached ? (
+                        <Check className="w-3 h-3 text-emerald-400" />
+                      ) : null}
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = prompt(`Enter custom milestone hour for ${selectedTrainee.fullName} (e.g. 150):`);
+                    if (val) {
+                      const num = parseInt(val, 10);
+                      if (num > 0) {
+                        handleViewTraineeMilestone(selectedTrainee.traineeId, num);
+                      }
+                    }
+                  }}
+                  className="min-h-[28px] px-2 py-0.5 rounded-lg text-[11px] font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Check any arbitrary milestone hour"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Custom Hour</span>
+                </button>
               </div>
             </div>
 
@@ -1245,6 +1313,26 @@ export const SupervisorPortal: React.FC = () => {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
                     required
                   />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {TARGET_HOUR_PRESETS.map((p) => {
+                      const isSelected = parseFloat(cfgTargetHours) === p.hours;
+                      return (
+                        <button
+                          key={p.hours}
+                          type="button"
+                          onClick={() => setCfgTargetHours(p.hours.toFixed(1))}
+                          className={`min-h-[22px] px-1.5 py-0.5 rounded text-[9px] font-semibold border transition-all ${
+                            isSelected
+                              ? 'bg-sky-500/20 text-sky-300 border-sky-500/50'
+                              : 'bg-slate-900 text-slate-400 hover:text-slate-200 border-slate-800'
+                          }`}
+                          title={`${p.label} (${p.desc})`}
+                        >
+                          {p.hours}h
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">Daily Schedule Hours</label>
@@ -1509,6 +1597,12 @@ export const SupervisorPortal: React.FC = () => {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto pr-1">
+              {traineeSubmissionInfo && (
+                <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl px-3.5 py-2 text-xs text-emerald-300 flex items-center gap-2 mb-3">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-semibold">{traineeSubmissionInfo}</span>
+                </div>
+              )}
               {traineeMilestoneLoading ? (
                 <div className="p-12 text-center text-slate-400 space-y-2">
                   <Clock className="w-7 h-7 animate-spin mx-auto text-amber-400" />

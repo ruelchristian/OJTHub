@@ -171,6 +171,94 @@ public static class ActivityEndpoints
         .WithName("GenerateMilestoneSummary")
         .WithTags("Activities");
 
+        group.MapPost("/submit-milestone", async (SubmitMilestoneRequest req, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var userId = GetUserId(principal);
+            if (userId == null) return Results.Unauthorized();
+
+            var reportType = $"Milestone_{req.MilestoneHours}h";
+            var existing = await db.GeneratedReports
+                .FirstOrDefaultAsync(r => r.UserId == userId.Value && r.ReportType == reportType);
+
+            if (existing != null)
+            {
+                existing.AiGeneratedContent = req.SummaryContent;
+                existing.EditedContent = req.SummaryContent;
+                existing.RawPromptData = req.Notes;
+                existing.CreatedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                existing = new GeneratedReport
+                {
+                    UserId = userId.Value,
+                    ReportType = reportType,
+                    StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                    EndDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                    RawPromptData = req.Notes,
+                    AiGeneratedContent = req.SummaryContent,
+                    EditedContent = req.SummaryContent,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+                db.GeneratedReports.Add(existing);
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new SubmittedMilestoneDto(
+                existing.Id,
+                existing.UserId,
+                req.MilestoneHours,
+                existing.EditedContent ?? existing.AiGeneratedContent,
+                existing.CreatedAt
+            ));
+        })
+        .RequireAuthorization()
+        .WithName("SubmitMilestoneSummary")
+        .WithTags("Activities");
+
+        group.MapGet("/submitted-milestones", async (Guid? userId, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var currentUserId = GetUserId(principal);
+            if (currentUserId == null) return Results.Unauthorized();
+
+            var targetUserId = currentUserId.Value;
+
+            if (userId.HasValue && userId.Value != currentUserId.Value)
+            {
+                // Verify caller is the supervisor of this trainee
+                var isSupervisor = await db.Users.AnyAsync(u => u.Id == userId.Value && u.SupervisorId == currentUserId.Value);
+                if (!isSupervisor)
+                {
+                    return Results.Forbid();
+                }
+                targetUserId = userId.Value;
+            }
+
+            var reports = await db.GeneratedReports
+                .Where(r => r.UserId == targetUserId && r.ReportType.StartsWith("Milestone_"))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var dtos = reports.Select(r =>
+            {
+                var hoursStr = r.ReportType.Replace("Milestone_", "").Replace("h", "");
+                int.TryParse(hoursStr, out var h);
+                return new SubmittedMilestoneDto(
+                    r.Id,
+                    r.UserId,
+                    h,
+                    r.EditedContent ?? r.AiGeneratedContent,
+                    r.CreatedAt
+                );
+            });
+
+            return Results.Ok(dtos);
+        })
+        .RequireAuthorization()
+        .WithName("GetSubmittedMilestones")
+        .WithTags("Activities");
+
         return group;
     }
 
