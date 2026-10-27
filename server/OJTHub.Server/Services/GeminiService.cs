@@ -29,7 +29,10 @@ public class GeminiService : IGeminiService
         // Build the prompt context from student activities
         var sb = new StringBuilder();
         sb.AppendLine($"You are an AI reporting assistant for OJTHub, an on-the-job training management system.");
-        sb.AppendLine($"Your task is to synthesize the following student OJT daily activities into a polished, professional {(reportType == "Journal_Narrative" ? "Reflective Journal Narrative" : "Daily End-of-Day (EOD) Standup Report")}.");
+        sb.AppendLine($"Your task is to summarize the following student OJT daily activities into a natural, easy-to-read {(reportType == "Journal_Narrative" ? "Reflective Journal Narrative" : "Daily End-of-Day (EOD) Standup Report")}.");
+        sb.AppendLine("\nTone & Phrasing Guidelines:");
+        sb.AppendLine("- Write in natural, clear, authentic student English. Speak like a real, dedicated intern describing what they actually worked on.");
+        sb.AppendLine("- STRICTLY AVOID corporate buzzwords, enterprise jargon, and pretentious phrases (such as 'spearheaded', 'leveraged synergies', 'operational deliverables', 'institutional framework', 'paradigms'). Keep it grounded, honest, and direct.");
         sb.AppendLine("\n### Trainee Activity Records:");
 
         if (activityList.Count == 0)
@@ -55,11 +58,11 @@ public class GeminiService : IGeminiService
 
         if (reportType == "Journal_Narrative")
         {
-            sb.AppendLine("\nPlease generate a formal, reflective OJT journal narrative formatted in clean Markdown. Include sections: Executive Overview, Key Accomplishments & Technical Skills Applied, Challenges Encountered & Resolutions, and Lessons Learned & Professional Development.");
+            sb.AppendLine("\nPlease write a natural, reflective OJT journal narrative formatted in clean Markdown. Include sections: 1. Summary of Work Done, 2. Key Tasks & Practical Learnings, 3. Challenges Encountered & Resolutions, and 4. Key Takeaways & Reflection.");
         }
         else
         {
-            sb.AppendLine("\nPlease generate a concise, structured Daily End-of-Day (EOD) standup report in clean Markdown. Include: Tasks Completed Today, Blockers/Issues Resolved, and Next Planned Steps.");
+            sb.AppendLine("\nPlease write a concise, clean Daily End-of-Day (EOD) standup report in clean Markdown. Include: Tasks Completed Today, Blockers/Issues Resolved, and Next Planned Steps.");
         }
 
         var prompt = sb.ToString();
@@ -133,26 +136,26 @@ public class GeminiService : IGeminiService
         {
             sb.AppendLine("# OJT Narrative Journal Report");
             sb.AppendLine($"**Report Date:** {DateTime.UtcNow:MMMM dd, yyyy}\n");
-            sb.AppendLine("## 1. Executive Overview");
-            sb.AppendLine("During this training period, on-the-job training objectives focused on practical execution of assigned technical and operational deliverables.\n");
-            sb.AppendLine("## 2. Key Accomplishments & Technical Skills Applied");
+            sb.AppendLine("## 1. Summary of Work Done");
+            sb.AppendLine("During this training period, I focused on completing my assigned daily tasks and learning practical workplace skills.\n");
+            sb.AppendLine("## 2. Key Tasks & Practical Learnings");
             foreach (var act in activities)
             {
                 sb.AppendLine($"- **{act.TaskTitle}** ({act.Category}): {act.Details}");
             }
             sb.AppendLine("\n## 3. Challenges Encountered & Resolutions");
-            sb.AppendLine("- Handled unexpected workflow edge-cases by applying collaborative debugging and adhering to institutional standards.");
+            sb.AppendLine("- Handled unexpected workflow edge-cases by checking technical documentation, asking for supervisor feedback, and testing step-by-step.");
             sb.AppendLine("\n## 4. Key Takeaways & Reflection");
-            sb.AppendLine("- Gained valuable hands-on experience in workplace workflows, accountability, and time management.");
+            sb.AppendLine("- Gained valuable hands-on experience, improved daily workplace communication, and learned how to manage my time better.");
         }
         else
         {
             sb.AppendLine("# Daily End-of-Day (EOD) Standup Summary");
             sb.AppendLine($"**Date:** {DateTime.UtcNow:MMMM dd, yyyy}\n");
-            sb.AppendLine("### ✅ Completed Tasks");
+            sb.AppendLine("### ✅ Completed Tasks Today");
             if (activities.Count == 0)
             {
-                sb.AppendLine("- Completed assigned daily workplace duties and documentation.");
+                sb.AppendLine("- Completed assigned daily workplace duties and updated task notes.");
             }
             else
             {
@@ -164,7 +167,7 @@ public class GeminiService : IGeminiService
             sb.AppendLine("\n### 🚧 Challenges & Blockers");
             sb.AppendLine("- None reported. Work progressed smoothly.");
             sb.AppendLine("\n### 🎯 Plan for Next Working Day");
-            sb.AppendLine("- Continue with scheduled milestones, review open logs, and align with supervisor recommendations.");
+            sb.AppendLine("- Continue with scheduled tasks, review feedback, and keep activity logs up to date.");
         }
 
         if (!string.IsNullOrWhiteSpace(customNotes))
@@ -186,18 +189,20 @@ public class GeminiService : IGeminiService
         var rawNotes = string.IsNullOrWhiteSpace(details) ? taskTitle : details.Trim();
 
         var prompt = $"""
-            You are an expert technical internship supervisor and university OJT coordinator.
-            Your task is to rewrite the student's raw draft task log into an impressive, professional, university-grade competency narrative for their official Daily Time Record (DTR) logbook.
+            You are an assistant helping an on-the-job training (OJT) intern write their daily accomplishment task log for their school journal.
+            Rewrite the student's rough draft notes into clear, natural, everyday human English that sounds like an authentic student intern.
 
             Student's Task Title: {taskTitle}
             Category: {effectiveCategory}
             Student's Raw Draft Notes: {rawNotes}
 
-            Guidelines:
-            - Start with a strong action verb (e.g., Developed, Configured, Analyzed, Executed, Documented, Validated, Optimized).
-            - Highlight technical context, tools used, and professional deliverables.
-            - Keep it concise: 1 to 2 clear, polished sentences (approx 20-45 words).
-            - Respond ONLY with the polished narrative text. DO NOT add quotes, markdown bullets, greetings, or conversational remarks.
+            CRITICAL RULES:
+            1. Use natural, plain human English. Speak like a real person, not an AI or a corporate consultant.
+            2. ABSOLUTELY NO corporate buzzwords or pretentious jargon: NEVER use words like "spearheaded", "orchestrated", "synergized", "leveraged", "operational deliverables", "institutional standards", "paradigm", "competency matrix", or "strategic alignment".
+            3. Start with simple, direct action verbs in the past tense (e.g. Worked on, Created, Helped fix, Built, Tested, Researched, Updated, Assisted with).
+            4. Clearly state what the student actually did and what the outcome was.
+            5. Keep it concise: 1 to 2 clear sentences (under 35 words).
+            6. Respond ONLY with the final rewritten sentence. Do NOT enclose in quotation marks. Do NOT include greetings, preamble, markdown formatting, or bullet points.
             """;
 
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY")
@@ -269,10 +274,10 @@ public class GeminiService : IGeminiService
 
         if (!string.IsNullOrWhiteSpace(raw))
         {
-            return $"Spearheaded {title.ToLowerInvariant()}: {raw}. Ensured thorough validation and adherence to institutional {category.ToLowerInvariant()} standards.";
+            return $"Worked on {title.ToLowerInvariant()}: {raw}. Tested and confirmed everything is functioning properly.";
         }
 
-        return $"Successfully completed operational deliverables for {title.ToLowerInvariant()} within {category.ToLowerInvariant()} scope, documenting key findings and verifying functional requirements.";
+        return $"Completed work on {title.ToLowerInvariant()} for {category.ToLowerInvariant()}, documented the steps taken, and verified that everything works as expected.";
     }
 }
 

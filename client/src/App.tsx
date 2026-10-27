@@ -10,9 +10,7 @@ import { Dashboard } from './components/Dashboard';
 
 import { AttendanceHistory } from './components/AttendanceHistory';
 
-import { ActivityLogger } from './components/ActivityLogger';
-
-import { AiReporting } from './components/AiReporting';
+import { JournalView } from './components/JournalView';
 
 import { DtrGenerator } from './components/DtrGenerator';
 
@@ -95,9 +93,11 @@ const MainLayout: React.FC = () => {
 
           <Route path="/history" element={<TraineeRoute><AttendanceHistory /></TraineeRoute>} />
 
-          <Route path="/activities" element={<TraineeRoute><ActivityLogger /></TraineeRoute>} />
+          <Route path="/activities" element={<TraineeRoute><JournalView /></TraineeRoute>} />
 
-          <Route path="/reports" element={<TraineeRoute><AiReporting /></TraineeRoute>} />
+          <Route path="/journal" element={<TraineeRoute><JournalView /></TraineeRoute>} />
+
+          <Route path="/reports" element={<TraineeRoute><JournalView defaultTab="reports" /></TraineeRoute>} />
 
           <Route path="/documents" element={<TraineeRoute><DtrGenerator /></TraineeRoute>} />
 

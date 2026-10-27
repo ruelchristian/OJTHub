@@ -3,7 +3,12 @@ import { api } from '../services/api';
 import type { GeneratedReport } from '../types';
 import { Sparkles, Copy, Check, Save, FileText, Send } from 'lucide-react';
 
-export const AiReporting: React.FC = () => {
+interface AiReportingProps {
+  hideBanner?: boolean;
+  onSwitchToTasks?: () => void;
+}
+
+export const AiReporting: React.FC<AiReportingProps> = ({ hideBanner = false, onSwitchToTasks }) => {
   const [reportType, setReportType] = useState<string>('EOD_Standup');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -88,22 +93,35 @@ export const AiReporting: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
-      {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg">
-        <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
-          <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
-          <span>AI-Assisted Reporting (Google Gemini)</span>
-        </h2>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Transform your raw daily activity logs into structured End-of-Day (EOD) standup reports or reflective journal narratives.
-        </p>
-      </div>
+      {/* Header Banner (optional if rendered inside JournalView) */}
+      {!hideBanner && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg">
+          <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
+            <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+            <span>AI-Assisted Reporting</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Turn your daily task records into structured daily standups (EOD) or weekly journal summaries in clear human English.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
         
         {/* Controls Card */}
         <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-lg h-fit space-y-3.5 sm:space-y-4 text-xs">
-          <h3 className="text-sm font-bold text-slate-200">Report Parameters</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-200">Report Parameters</h3>
+            {onSwitchToTasks && (
+              <button
+                type="button"
+                onClick={onSwitchToTasks}
+                className="text-sky-400 hover:text-sky-300 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                &larr; Daily Tasks
+              </button>
+            )}
+          </div>
 
           <div>
             <label className="block text-slate-400 font-medium mb-1.5">Report Format</label>

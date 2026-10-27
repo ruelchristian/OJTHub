@@ -457,11 +457,11 @@ export const api = {
       const category = data.category || 'General';
       if (raw) {
         return {
-          polishedDetails: `Spearheaded ${title.toLowerCase()}: ${raw}. Ensured thorough validation and adherence to institutional ${category.toLowerCase()} standards.`
+          polishedDetails: `Worked on ${title.toLowerCase()}: ${raw}. Tested and confirmed everything is functioning properly.`
         };
       }
       return {
-        polishedDetails: `Successfully completed operational deliverables for ${title.toLowerCase()} within ${category.toLowerCase()} scope, documenting key findings and verifying functional requirements.`
+        polishedDetails: `Completed work on ${title.toLowerCase()} for ${category.toLowerCase()}, documented the steps taken, and verified that everything works as expected.`
       };
     }
   },

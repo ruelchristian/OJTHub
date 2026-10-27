@@ -10,9 +10,7 @@ import {
 
   Calendar, 
 
-  CheckSquare, 
-
-  Sparkles, 
+  BookOpen,
 
   Settings, 
 
@@ -120,9 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
 
     { id: 'history', path: '/history', label: 'Attendance', mobileLabel: 'Attendance', icon: Calendar },
 
-    { id: 'activities', path: '/activities', label: 'Daily Tasks', mobileLabel: 'Tasks', icon: CheckSquare },
-
-    { id: 'reports', path: '/reports', label: 'AI Reports', mobileLabel: 'AI Reports', icon: Sparkles },
+    { id: 'activities', path: '/activities', label: 'Journal & Reports', mobileLabel: 'Journal', icon: BookOpen },
 
   ];
 
@@ -141,6 +137,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, setCurrentTab, onOpe
     if (location.pathname === tab.path) return true;
 
     if (tab.path === '/dashboard' && location.pathname === '/') return true;
+
+    if (tab.path === '/activities' && (location.pathname === '/reports' || location.pathname === '/journal')) return true;
 
     if (currentTab && currentTab === tab.id) return true;
 

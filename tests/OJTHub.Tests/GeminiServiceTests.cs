@@ -9,7 +9,7 @@ namespace OJTHub.Tests;
 public class GeminiServiceTests
 {
     [TestMethod]
-    public async Task PolishTaskNarrativeAsync_NoApiKey_ReturnsFallbackCompetencyNarrative()
+    public async Task PolishTaskNarrativeAsync_NoApiKey_ReturnsFallbackHumanNarrative()
     {
         // Arrange
         var inMemorySettings = new Dictionary<string, string?>
@@ -34,8 +34,10 @@ public class GeminiServiceTests
 
         // Assert
         Assert.IsFalse(string.IsNullOrWhiteSpace(result), "Polished narrative should not be empty");
-        StringAssert.Contains(result, "Spearheaded fixed login error", "Polished text should elevate the task title with action verbs");
+        StringAssert.Contains(result, "Worked on fixed login error", "Polished text should use natural human phrasing");
         StringAssert.Contains(result, "found null reference", "Polished text should preserve the core technical context");
+        StringAssert.DoesNotMatch(result, new System.Text.RegularExpressions.Regex("Spearheaded"), "Should not use corporate buzzwords like Spearheaded");
+        StringAssert.DoesNotMatch(result, new System.Text.RegularExpressions.Regex("operational deliverables"), "Should not use robotic corporate phrases");
     }
 
     [TestMethod]
