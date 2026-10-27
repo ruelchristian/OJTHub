@@ -4,8 +4,9 @@ import autoTable from 'jspdf-autotable';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { AttendanceRecord, OjtSetting } from '../types';
-import { FileText, Download, Printer, FileSpreadsheet } from 'lucide-react';
+import { FileText, FileSpreadsheet, Eye } from 'lucide-react';
 import { downloadDtrCsv } from '../utils/dtrExport';
+import { PdfPreviewModal } from './PdfPreviewModal';
 
 export const DtrGenerator: React.FC = () => {
   const { user } = useAuth();
@@ -14,6 +15,8 @@ export const DtrGenerator: React.FC = () => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [setting, setSetting] = useState<OjtSetting | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfName, setPreviewPdfName] = useState<string>('');
 
   useEffect(() => {
     async function load() {
@@ -51,7 +54,7 @@ export const DtrGenerator: React.FC = () => {
 
   const totalMonthHours = records.reduce((acc, r) => acc + (r.netRenderedHours ?? 0), 0);
 
-  const generatePdf = () => {
+  const generatePdf = (downloadDirectly: boolean = false) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -196,7 +199,27 @@ export const DtrGenerator: React.FC = () => {
     doc.text('AUTHORIZED SUPERVISOR', 160, sigY + 4, { align: 'center' });
     doc.text('OJT Supervisor / Instructor', 160, sigY + 7.5, { align: 'center' });
 
-    doc.save(`DTR_${user?.fullName?.replace(/\s+/g, '_')}_${monthName}_${selectedYear}.pdf`);
+    const fileName = `DTR_${(user?.fullName || 'Trainee').replace(/[^a-zA-Z0-9]/g, '_')}_${monthName}_${selectedYear}.pdf`;
+
+    if (downloadDirectly) {
+      doc.save(fileName);
+      return;
+    }
+
+    const pdfBlob = doc.output('blob');
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+    }
+    const url = URL.createObjectURL(pdfBlob);
+    setPreviewPdfUrl(url);
+    setPreviewPdfName(fileName);
+  };
+
+  const handleClosePreview = () => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(null);
+    }
   };
 
   const handleExportCsv = () => {
@@ -249,12 +272,13 @@ export const DtrGenerator: React.FC = () => {
           </select>
 
           <button
-            onClick={generatePdf}
+            onClick={() => generatePdf(false)}
             disabled={loading}
             className="w-full xs:w-auto min-h-[42px] px-4 py-2 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            title="Preview and inspect official DTR PDF before downloading"
           >
-            <Download className="w-4 h-4" />
-            <span>Download PDF</span>
+            <Eye className="w-4 h-4" />
+            <span>Preview DTR (PDF)</span>
           </button>
 
           <button
@@ -347,14 +371,25 @@ export const DtrGenerator: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row justify-end pt-2">
           <button
-            onClick={generatePdf}
+            onClick={() => generatePdf(false)}
             className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-xl font-bold text-xs bg-sky-600 hover:bg-sky-500 active:scale-95 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Printer className="w-4 h-4" />
-            <span>Generate & Download Official DTR</span>
+            <Eye className="w-4 h-4" />
+            <span>Preview & Export Official DTR</span>
           </button>
         </div>
       </div>
+
+      {/* PDF Document Preview Modal */}
+      <PdfPreviewModal
+        isOpen={Boolean(previewPdfUrl)}
+        pdfUrl={previewPdfUrl}
+        fileName={previewPdfName}
+        title={`Official DTR PDF — ${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
+        subtitle={`${user?.fullName} • ${setting?.companyName ?? 'Host Training Establishment'} • Total ${totalMonthHours.toFixed(2)}h`}
+        onClose={handleClosePreview}
+        onDownload={() => generatePdf(true)}
+      />
     </div>
   );
 };

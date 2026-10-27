@@ -10,7 +10,8 @@ import { useAuth } from '../context/AuthContext';
 
 import type { AttendanceRecord } from '../types';
 
-import { Calendar, ShieldCheck, Clock, CheckCircle2, AlertCircle, Printer } from 'lucide-react';
+import { Calendar, ShieldCheck, Clock, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
+import { PdfPreviewModal } from './PdfPreviewModal';
 
 export const AttendanceHistory: React.FC = () => {
 
@@ -25,8 +26,10 @@ export const AttendanceHistory: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfName, setPreviewPdfName] = useState<string>('');
 
-  const handleDownloadPdfDtr = async () => {
+  const handleDownloadPdfDtr = async (downloadDirectly: boolean = false) => {
 
     setGeneratingPdf(true);
 
@@ -271,8 +274,20 @@ export const AttendanceHistory: React.FC = () => {
       doc.text('OJT Supervisor / Coordinator', 160, sigY + 8, { align: 'center' });
 
       const cleanName = (user?.fullName || 'Trainee').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `DTR_${cleanName}_${monthName}_${selectedYear}.pdf`;
 
-      doc.save(`DTR_${cleanName}_${monthName}_${selectedYear}.pdf`);
+      if (downloadDirectly) {
+        doc.save(fileName);
+        return;
+      }
+
+      const pdfBlob = doc.output('blob');
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl);
+      }
+      const url = URL.createObjectURL(pdfBlob);
+      setPreviewPdfUrl(url);
+      setPreviewPdfName(fileName);
 
     } catch (err: any) {
 
@@ -284,6 +299,13 @@ export const AttendanceHistory: React.FC = () => {
 
     }
 
+  };
+
+  const handleClosePreview = () => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(null);
+    }
   };
 
   const loadHistory = async () => {
@@ -414,19 +436,19 @@ export const AttendanceHistory: React.FC = () => {
 
           <button
 
-            onClick={handleDownloadPdfDtr}
+            onClick={() => handleDownloadPdfDtr(false)}
 
             disabled={loading || records.length === 0 || generatingPdf}
 
             className="min-h-[42px] px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md shrink-0"
 
-            title="Download Official Daily Time Record (PDF)"
+            title="Preview and inspect official Daily Time Record (PDF)"
 
           >
 
-            <Printer className="w-4 h-4" />
+            <Eye className="w-4 h-4" />
 
-            <span>{generatingPdf ? 'Generating...' : 'Print DTR'}</span>
+            <span>{generatingPdf ? 'Generating...' : 'Preview DTR'}</span>
 
           </button>
 
@@ -788,6 +810,17 @@ export const AttendanceHistory: React.FC = () => {
         )}
 
       </div>
+
+      {/* PDF Document Preview Modal */}
+      <PdfPreviewModal
+        isOpen={Boolean(previewPdfUrl)}
+        pdfUrl={previewPdfUrl}
+        fileName={previewPdfName}
+        title={`Official DTR PDF — ${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
+        subtitle={`${user?.fullName} • Student ID: ${user?.studentId || 'N/A'}`}
+        onClose={handleClosePreview}
+        onDownload={() => handleDownloadPdfDtr(true)}
+      />
 
     </div>
 
