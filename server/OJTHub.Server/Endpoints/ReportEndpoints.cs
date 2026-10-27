@@ -96,6 +96,20 @@ public static class ReportEndpoints
         .WithName("GetReports")
         .WithTags("Reports");
 
+        group.MapPost("/polish", async (PolishReportRequest req, IGeminiService geminiService, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Content))
+            {
+                return Results.BadRequest(new { message = "Content is required to polish." });
+            }
+
+            var polished = await geminiService.PolishReportContentAsync(req.ReportType, req.Content, ct);
+            return Results.Ok(new PolishReportResponse(polished));
+        })
+        .AllowAnonymous()
+        .WithName("PolishReportContent")
+        .WithTags("Reports");
+
         return group;
     }
 

@@ -22,6 +22,7 @@ export const ActivityLogger: React.FC<ActivityLoggerProps> = ({ hideBanner = fal
   const [formError, setFormError] = useState<string | null>(null);
   const [polishing, setPolishing] = useState<boolean>(false);
   const [polishedJustNow, setPolishedJustNow] = useState<boolean>(false);
+  const [polishPurpose, setPolishPurpose] = useState<'journal' | 'daily_report'>('journal');
 
   const loadActivities = async () => {
     setLoading(true);
@@ -73,7 +74,8 @@ export const ActivityLogger: React.FC<ActivityLoggerProps> = ({ hideBanner = fal
       const res = await api.activities.polish({
         taskTitle: taskTitle.trim(),
         details: details.trim(),
-        category
+        category,
+        purpose: polishPurpose
       });
       if (res?.polishedDetails) {
         setDetails(res.polishedDetails);
@@ -190,40 +192,79 @@ export const ActivityLogger: React.FC<ActivityLoggerProps> = ({ hideBanner = fal
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-1.5">
                 <label className="block text-slate-400 font-medium">Task Details & Accomplishments</label>
-                <button
-                  type="button"
-                  onClick={handlePolishWithAi}
-                  disabled={polishing || (!taskTitle.trim() && !details.trim())}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm active:scale-95 ${
-                    polishedJustNow
-                      ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-gradient-to-r from-purple-600/25 via-indigo-600/25 to-sky-600/25 hover:from-purple-600/40 hover:to-sky-600/40 border border-purple-500/40 text-purple-300 hover:text-purple-100'
-                  }`}
-                  title="Make rough draft notes sound clear, natural, and human for your journal"
-                >
-                  {polishing ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
-                      <span>Polishing...</span>
-                    </>
-                  ) : polishedJustNow ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Polished!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                      <span>AI Polish (Human Phrasing)</span>
-                    </>
-                  )}
-                </button>
+
+                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                  {/* Mode Selector */}
+                  <div className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-700/80 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setPolishPurpose('journal')}
+                      className={`px-2 py-0.5 rounded font-semibold transition-all cursor-pointer ${
+                        polishPurpose === 'journal'
+                          ? 'bg-sky-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="Polish for OJT school logbook / journal"
+                    >
+                      Journal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPolishPurpose('daily_report')}
+                      className={`px-2 py-0.5 rounded font-semibold transition-all cursor-pointer ${
+                        polishPurpose === 'daily_report'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="Polish as daily work report / standup"
+                    >
+                      Daily Report
+                    </button>
+                  </div>
+
+                  {/* AI Polish Button */}
+                  <button
+                    type="button"
+                    onClick={handlePolishWithAi}
+                    disabled={polishing || (!taskTitle.trim() && !details.trim())}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm active:scale-95 ${
+                      polishedJustNow
+                        ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                        : polishPurpose === 'daily_report'
+                        ? 'bg-gradient-to-r from-indigo-600/25 to-sky-600/25 hover:from-indigo-600/40 hover:to-sky-600/40 border border-indigo-500/40 text-indigo-300 hover:text-indigo-100'
+                        : 'bg-gradient-to-r from-purple-600/25 via-indigo-600/25 to-sky-600/25 hover:from-purple-600/40 hover:to-sky-600/40 border border-purple-500/40 text-purple-300 hover:text-purple-100'
+                    }`}
+                    title={polishPurpose === 'daily_report' ? 'Polish as daily standup / supervisor report' : 'Polish as school journal accomplishment log'}
+                  >
+                    {polishing ? (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                        <span>Polishing...</span>
+                      </>
+                    ) : polishedJustNow ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Polished!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                        <span>AI Polish</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
               <textarea
                 rows={3}
-                placeholder="Describe what you worked on, tools used, or what you learned (or type rough notes and click 'AI Polish')..."
+                placeholder={
+                  polishPurpose === 'daily_report'
+                    ? "Describe what you worked on, status, or blockers (or type rough notes and click 'AI Polish' for a daily report)..."
+                    : "Describe what you worked on, tools used, or what you learned (or type rough notes and click 'AI Polish' for a journal)..."
+                }
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 className={`w-full bg-slate-800 border rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed transition-all ${
@@ -233,7 +274,9 @@ export const ActivityLogger: React.FC<ActivityLoggerProps> = ({ hideBanner = fal
               {polishedJustNow && (
                 <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1 animate-fade-in">
                   <Sparkles className="w-3 h-3 text-emerald-400" />
-                  Polished into natural, human English suitable for your OJT journal.
+                  {polishPurpose === 'daily_report'
+                    ? 'Polished into a structured daily work report for your supervisor.'
+                    : 'Polished into natural, human English for your OJT journal logbook.'}
                 </p>
               )}
             </div>

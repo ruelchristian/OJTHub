@@ -435,7 +435,7 @@ export const api = {
       return handleResponse<void>(res);
     },
 
-    async polish(data: { taskTitle: string; details?: string; category?: string }): Promise<{ polishedDetails: string }> {
+    async polish(data: { taskTitle: string; details?: string; category?: string; purpose?: 'journal' | 'daily_report' }): Promise<{ polishedDetails: string }> {
       try {
         const res = await fetch(`${API_BASE}/activities/polish`, {
           method: 'POST',
@@ -455,6 +455,14 @@ export const api = {
       const title = data.taskTitle.trim() || 'assigned task';
       const raw = (data.details || '').trim().replace(/\.$/, '');
       const category = data.category || 'General';
+
+      if (data.purpose === 'daily_report') {
+        const progress = raw || 'Completed assigned work and tested successfully';
+        return {
+          polishedDetails: `• Task: ${title} (${category})\n• Progress: ${progress}\n• Status: Completed`
+        };
+      }
+
       if (raw) {
         return {
           polishedDetails: `Worked on ${title.toLowerCase()}: ${raw}. Tested and confirmed everything is functioning properly.`
@@ -467,6 +475,24 @@ export const api = {
   },
 
   reports: {
+    async polish(data: { reportType: string; content: string }): Promise<{ polishedContent: string }> {
+      try {
+        const res = await fetch(`${API_BASE}/reports/polish`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeader()
+          },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          return await handleResponse<{ polishedContent: string }>(res);
+        }
+      } catch (e) {
+        console.warn('Backend report polish failed, using fallback', e);
+      }
+      return { polishedContent: data.content };
+    },
     async generateAi(data: { reportType: string; startDate: string; endDate: string; customNotes?: string }): Promise<{
       reportType: string;
       startDate: string;

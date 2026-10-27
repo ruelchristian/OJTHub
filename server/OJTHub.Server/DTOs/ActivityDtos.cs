@@ -29,7 +29,8 @@ public record ActivityLogDto(
 public record PolishTaskRequest(
     string TaskTitle,
     string? Details,
-    string? Category
+    string? Category,
+    string? Purpose = "journal"
 );
 
 public record PolishTaskResponse(

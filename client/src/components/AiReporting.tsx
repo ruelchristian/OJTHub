@@ -19,6 +19,8 @@ export const AiReporting: React.FC<AiReportingProps> = ({ hideBanner = false, on
   const [copied, setCopied] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [polishingReport, setPolishingReport] = useState<boolean>(false);
+  const [polishedReportSuccess, setPolishedReportSuccess] = useState<boolean>(false);
 
   const [savedReports, setSavedReports] = useState<GeneratedReport[]>([]);
 
@@ -50,6 +52,27 @@ export const AiReporting: React.FC<AiReportingProps> = ({ hideBanner = false, on
       alert(err.message || 'Failed to generate AI report.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handlePolishReport = async () => {
+    if (!draftContent.trim()) return;
+    setPolishingReport(true);
+    setPolishedReportSuccess(false);
+    try {
+      const res = await api.reports.polish({
+        reportType,
+        content: draftContent.trim()
+      });
+      if (res?.polishedContent) {
+        setDraftContent(res.polishedContent);
+        setPolishedReportSuccess(true);
+        setTimeout(() => setPolishedReportSuccess(false), 3500);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to polish report.');
+    } finally {
+      setPolishingReport(false);
     }
   };
 
@@ -212,6 +235,36 @@ export const AiReporting: React.FC<AiReportingProps> = ({ hideBanner = false, on
               {draftContent && (
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    onClick={handlePolishReport}
+                    disabled={polishingReport || !draftContent.trim()}
+                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
+                      polishedReportSuccess
+                        ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                        : reportType === 'Journal_Narrative'
+                        ? 'bg-gradient-to-r from-purple-600/30 via-indigo-600/30 to-sky-600/30 hover:from-purple-600/50 hover:to-sky-600/50 border border-purple-500/50 text-purple-200'
+                        : 'bg-gradient-to-r from-sky-600/30 to-indigo-600/30 hover:from-sky-600/50 hover:to-indigo-600/50 border border-sky-500/50 text-sky-200'
+                    }`}
+                    title={`Polish this ${reportType === 'Journal_Narrative' ? 'journal' : 'daily report'} into natural human English`}
+                  >
+                    {polishingReport ? (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                        <span>Polishing...</span>
+                      </>
+                    ) : polishedReportSuccess ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Polished!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{reportType === 'Journal_Narrative' ? 'AI Polish (Journal)' : 'AI Polish (Daily Report)'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
                     onClick={handleCopyMarkdown}
                     className="min-h-[36px] px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700 cursor-pointer"
                     title="Copy Markdown"
@@ -249,6 +302,14 @@ export const AiReporting: React.FC<AiReportingProps> = ({ hideBanner = false, on
               placeholder="Click 'Generate Draft with AI' to aggregate your recorded activities into an editable draft report..."
               className="w-full min-h-[220px] sm:min-h-[280px] bg-slate-950/60 border border-slate-800 rounded-xl p-3 sm:p-4 text-slate-200 text-xs sm:text-sm font-mono leading-relaxed focus:outline-none focus:border-sky-500 whitespace-pre-wrap resize-y"
             />
+            {polishedReportSuccess && (
+              <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1.5 animate-fade-in font-medium">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  Polished into clean human English for your {reportType === 'Journal_Narrative' ? 'OJT Journal Narrative' : 'Daily Standup Report'}.
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Saved Reports Mini-History */}

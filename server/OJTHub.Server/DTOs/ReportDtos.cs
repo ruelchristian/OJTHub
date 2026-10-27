@@ -33,3 +33,12 @@ public record GeneratedReportDto(
     string? EditedContent,
     DateTimeOffset CreatedAt
 );
+
+public record PolishReportRequest(
+    string ReportType,
+    string Content
+);
+
+public record PolishReportResponse(
+    string PolishedContent
+);

@@ -69,4 +69,63 @@ public class GeminiServiceTests
         StringAssert.Contains(result, "database schema migration");
         StringAssert.Contains(result, "database");
     }
+
+    [TestMethod]
+    public async Task PolishTaskNarrativeAsync_DailyReportPurpose_ReturnsStructuredReportFormat()
+    {
+        // Arrange
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            {"Gemini:ApiKey", ""}
+        };
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var httpClient = new HttpClient();
+        var logger = NullLogger<GeminiService>.Instance;
+        var service = new GeminiService(httpClient, configuration, logger);
+
+        // Act
+        var result = await service.PolishTaskNarrativeAsync(
+            taskTitle: "Updated profile photo upload API",
+            details: "added mime type validation and max file size check",
+            category: "Development",
+            purpose: "daily_report"
+        );
+
+        // Assert
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result));
+        StringAssert.Contains(result, "• Task: Updated profile photo upload API");
+        StringAssert.Contains(result, "• Progress: added mime type validation and max file size check");
+        StringAssert.Contains(result, "• Status: Completed");
+        StringAssert.DoesNotMatch(result, new System.Text.RegularExpressions.Regex("Spearheaded"), "Should not use corporate jargon");
+    }
+
+    [TestMethod]
+    public async Task PolishReportContentAsync_NoApiKey_ReturnsContentCleanly()
+    {
+        // Arrange
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            {"Gemini:ApiKey", ""}
+        };
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var httpClient = new HttpClient();
+        var logger = NullLogger<GeminiService>.Instance;
+        var service = new GeminiService(httpClient, configuration, logger);
+
+        var draft = "### ✅ Completed Tasks Today\n- Fixed button error\n";
+
+        // Act
+        var result = await service.PolishReportContentAsync("EOD_Standup", draft);
+
+        // Assert
+        Assert.AreEqual(draft, result);
+    }
 }

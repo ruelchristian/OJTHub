@@ -182,33 +182,56 @@ public class GeminiService : IGeminiService
         string taskTitle,
         string? details,
         string? category,
+        string? purpose = "journal",
         CancellationToken ct = default)
     {
         var apiKey = _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         var effectiveCategory = string.IsNullOrWhiteSpace(category) ? "Technical Training" : category.Trim();
         var rawNotes = string.IsNullOrWhiteSpace(details) ? taskTitle : details.Trim();
+        var isDailyReport = string.Equals(purpose, "daily_report", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(purpose, "report", StringComparison.OrdinalIgnoreCase);
 
-        var prompt = $"""
-            You are an assistant helping an on-the-job training (OJT) intern write their daily accomplishment task log for their school journal.
-            Rewrite the student's rough draft notes into clear, natural, everyday human English that sounds like an authentic student intern.
+        var prompt = isDailyReport
+            ? $"""
+                You are an assistant helping an intern student format a clear daily work report (daily standup update) for their workplace supervisor.
+                Rewrite the student's task notes into a concise, direct daily report entry in plain human English.
 
-            Student's Task Title: {taskTitle}
-            Category: {effectiveCategory}
-            Student's Raw Draft Notes: {rawNotes}
+                Student's Task Title: {taskTitle}
+                Category: {effectiveCategory}
+                Student's Raw Draft Notes: {rawNotes}
 
-            CRITICAL RULES:
-            1. Use natural, plain human English. Speak like a real person, not an AI or a corporate consultant.
-            2. ABSOLUTELY NO corporate buzzwords or pretentious jargon: NEVER use words like "spearheaded", "orchestrated", "synergized", "leveraged", "operational deliverables", "institutional standards", "paradigm", "competency matrix", or "strategic alignment".
-            3. Start with simple, direct action verbs in the past tense (e.g. Worked on, Created, Helped fix, Built, Tested, Researched, Updated, Assisted with).
-            4. Clearly state what the student actually did and what the outcome was.
-            5. Keep it concise: 1 to 2 clear sentences (under 35 words).
-            6. Respond ONLY with the final rewritten sentence. Do NOT enclose in quotation marks. Do NOT include greetings, preamble, markdown formatting, or bullet points.
-            """;
+                RULES:
+                1. Write in plain, direct human English. No corporate buzzwords or fluff (NO "spearheaded", "orchestrated", "synergized", "leveraged", "operational deliverables").
+                2. Format cleanly as:
+                   • Task: [Simple title of what was worked on]
+                   • Progress: [What was done and verified in 1 clear sentence]
+                   • Status: Completed (or In Progress)
+                3. Keep it brief and easy to scan for a busy workplace supervisor.
+                4. Respond ONLY with the formatted daily report text. No conversational chatter, no extra markdown codeblocks.
+                """
+            : $"""
+                You are an assistant helping an on-the-job training (OJT) intern write their daily accomplishment task log for their official school journal.
+                Rewrite the student's rough draft notes into clear, natural, everyday human English that sounds like an authentic student intern.
+
+                Student's Task Title: {taskTitle}
+                Category: {effectiveCategory}
+                Student's Raw Draft Notes: {rawNotes}
+
+                CRITICAL RULES:
+                1. Use natural, plain human English. Speak like a real student describing what they did and learned.
+                2. ABSOLUTELY NO corporate buzzwords or pretentious jargon: NEVER use words like "spearheaded", "orchestrated", "synergized", "leveraged", "operational deliverables", "institutional standards", "paradigm", "competency matrix", or "strategic alignment".
+                3. Start with simple, direct action verbs in the past tense (e.g. Worked on, Created, Helped fix, Built, Tested, Researched, Updated, Assisted with).
+                4. Clearly state what the student actually did and what the outcome was.
+                5. Keep it concise: 1 to 2 clear sentences (under 35 words).
+                6. Respond ONLY with the final rewritten sentence. Do NOT enclose in quotation marks. Do NOT include greetings, preamble, markdown formatting, or bullet points.
+                """;
 
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY")
         {
-            _logger.LogWarning("Gemini API key is not configured. Returning local polished template.");
-            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+            _logger.LogWarning("Gemini API key is not configured. Returning local polished template for {Purpose}.", purpose);
+            return isDailyReport
+                ? GenerateFallbackDailyReportPolish(taskTitle, details, effectiveCategory)
+                : GenerateFallbackJournalPolish(taskTitle, details, effectiveCategory);
         }
 
         try
@@ -240,7 +263,9 @@ public class GeminiService : IGeminiService
             {
                 var err = await response.Content.ReadAsStringAsync(ct);
                 _logger.LogError("Gemini API error ({StatusCode}): {Error}", response.StatusCode, err);
-                return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+                return isDailyReport
+                    ? GenerateFallbackDailyReportPolish(taskTitle, details, effectiveCategory)
+                    : GenerateFallbackJournalPolish(taskTitle, details, effectiveCategory);
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(ct);
@@ -258,16 +283,124 @@ public class GeminiService : IGeminiService
                 if (!string.IsNullOrWhiteSpace(text)) return text;
             }
 
-            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+            return isDailyReport
+                ? GenerateFallbackDailyReportPolish(taskTitle, details, effectiveCategory)
+                : GenerateFallbackJournalPolish(taskTitle, details, effectiveCategory);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to call Gemini API for polishing. Falling back to template.");
-            return GenerateFallbackPolish(taskTitle, details, effectiveCategory);
+            return isDailyReport
+                ? GenerateFallbackDailyReportPolish(taskTitle, details, effectiveCategory)
+                : GenerateFallbackJournalPolish(taskTitle, details, effectiveCategory);
         }
     }
 
-    private static string GenerateFallbackPolish(string taskTitle, string? details, string category)
+    public async Task<string> PolishReportContentAsync(string reportType, string content, CancellationToken ct = default)
+    {
+        var apiKey = _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        var isJournal = string.Equals(reportType, "Journal_Narrative", StringComparison.OrdinalIgnoreCase);
+
+        var prompt = isJournal
+            ? $"""
+                You are an assistant helping an OJT intern student polish their official school journal narrative.
+                Review and polish the following draft report into natural, articulate, reflective human English.
+
+                Draft Content:
+                {content}
+
+                GUIDELINES:
+                1. Write in warm, reflective, authentic student English.
+                2. STRICTLY NO corporate buzzwords (no "spearheaded", "leveraged synergies", "operational deliverables", "institutional standards").
+                3. Keep clean Markdown headings:
+                   ## 1. Summary of Work Done
+                   ## 2. Key Tasks & Practical Learnings
+                   ## 3. Challenges Encountered & Resolutions
+                   ## 4. Key Takeaways & Reflection
+                4. Maintain all core facts from the draft, but ensure the narrative flows naturally and sounds like a genuine student report.
+                5. Return ONLY the polished Markdown report.
+                """
+            : $"""
+                You are an assistant helping an intern student polish their Daily End-of-Day (EOD) standup report for their workplace supervisor.
+                Review and polish the following draft into a concise, professional, easy-to-read daily report in plain human English.
+
+                Draft Content:
+                {content}
+
+                GUIDELINES:
+                1. Write in plain, punchy, direct human English.
+                2. STRICTLY NO corporate jargon or buzzwords.
+                3. Keep clean Markdown headings:
+                   ### ✅ Completed Tasks Today
+                   ### 🚧 Challenges / Blockers
+                   ### 🎯 Plan for Tomorrow
+                4. Keep bullet points crisp, direct, and actionable.
+                5. Return ONLY the polished Markdown standup report.
+                """;
+
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY")
+        {
+            _logger.LogWarning("Gemini API key is not configured. Returning original content for PolishReportContent.");
+            return content;
+        }
+
+        try
+        {
+            var model = _config["Gemini:Model"] ?? "gemini-1.5-flash";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                }
+            };
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(requestPayload),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.PostAsync(url, jsonContent, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError("Gemini API error ({StatusCode}): {Error}", response.StatusCode, err);
+                return content;
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(responseJson);
+
+            var root = doc.RootElement;
+            if (root.TryGetProperty("candidates", out var candidates) &&
+                candidates.GetArrayLength() > 0 &&
+                candidates[0].TryGetProperty("content", out var textContent) &&
+                textContent.TryGetProperty("parts", out var parts) &&
+                parts.GetArrayLength() > 0 &&
+                parts[0].TryGetProperty("text", out var textElement))
+            {
+                var text = textElement.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+
+            return content;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to polish report content via Gemini. Returning original content.");
+            return content;
+        }
+    }
+
+    private static string GenerateFallbackJournalPolish(string taskTitle, string? details, string category)
     {
         var title = string.IsNullOrWhiteSpace(taskTitle) ? "assigned tasks" : taskTitle.Trim();
         var raw = string.IsNullOrWhiteSpace(details) ? "" : details.Trim().TrimEnd('.');
@@ -278,6 +411,13 @@ public class GeminiService : IGeminiService
         }
 
         return $"Completed work on {title.ToLowerInvariant()} for {category.ToLowerInvariant()}, documented the steps taken, and verified that everything works as expected.";
+    }
+
+    private static string GenerateFallbackDailyReportPolish(string taskTitle, string? details, string category)
+    {
+        var title = string.IsNullOrWhiteSpace(taskTitle) ? "Daily Task" : taskTitle.Trim();
+        var raw = string.IsNullOrWhiteSpace(details) ? "Completed assigned work and tested successfully." : details.Trim().TrimEnd('.');
+        return $"• Task: {title} ({category})\n• Progress: {raw}\n• Status: Completed";
     }
 }
 

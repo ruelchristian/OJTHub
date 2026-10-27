@@ -117,7 +117,7 @@ public static class ActivityEndpoints
                 return Results.BadRequest(new { message = "Task title or details must be provided to polish." });
             }
 
-            var polished = await geminiService.PolishTaskNarrativeAsync(req.TaskTitle, req.Details, req.Category, ct);
+            var polished = await geminiService.PolishTaskNarrativeAsync(req.TaskTitle, req.Details, req.Category, req.Purpose ?? "journal", ct);
             return Results.Ok(new PolishTaskResponse(polished));
         })
         .AllowAnonymous()
