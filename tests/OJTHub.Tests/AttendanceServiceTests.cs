@@ -115,4 +115,32 @@ public class AttendanceServiceTests
         // Assert: Must be capped at 10.00 hours
         Assert.AreEqual(10.00m, netHours, "Shift exceeding teacher-configured 10h cap must be capped at 10.00 hours.");
     }
+
+    [TestMethod]
+    public void CalculateNetHours_EarlyTimeOutUnderFourHours_CalculatesExactFractionalHoursWithoutLunchDeduction()
+    {
+        // Arrange: Student times out early after 2 hours 15 minutes (2.25 hours) e.g. feeling sick
+        var timeIn = new DateTimeOffset(2026, 9, 11, 8, 0, 0, TimeSpan.Zero);
+        var timeOut = timeIn.AddHours(2.25);
+
+        // Act
+        var netHours = _service.CalculateNetHours(timeIn, timeOut, 60, 10.0m);
+
+        // Assert: Under 4 hours, no lunch deduction; exact 2.25 hours credited
+        Assert.AreEqual(2.25m, netHours, "Early time-out under 4 hours must credit exact elapsed hours without lunch deduction.");
+    }
+
+    [TestMethod]
+    public void CalculateNetHours_EarlyTimeOutHalfDayFiveHours_DeductsLunchAccurately()
+    {
+        // Arrange: Student leaves early after 5 hours (e.g. half-day permission), 60m lunch
+        var timeIn = new DateTimeOffset(2026, 9, 11, 8, 0, 0, TimeSpan.Zero);
+        var timeOut = timeIn.AddHours(5.0);
+
+        // Act: 5.0h elapsed - 1.0h lunch = 4.0h net
+        var netHours = _service.CalculateNetHours(timeIn, timeOut, 60, 10.0m);
+
+        // Assert
+        Assert.AreEqual(4.00m, netHours, "Early time-out over 4 hours must deduct lunch correctly.");
+    }
 }

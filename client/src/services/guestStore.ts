@@ -74,14 +74,44 @@ export const guestStore = {
     const todayStr = new Date().toISOString().split('T')[0];
 
     // Find if there is an active shift (timeIn exists and timeOut is null)
-    const activeShift = records.find(r => r.date === todayStr && !r.timeOut);
-    const todayRecord = activeShift || records.find(r => r.date === todayStr) || null;
+    const activeShift = records.find(r => !r.timeOut);
+    const todayRecord = activeShift || records.slice().reverse().find(r => r.date === todayStr) || null;
 
     return {
       hasActiveShift: !!activeShift,
       todayRecord,
       settings
     };
+  },
+
+  resumeShift(): AttendanceRecord {
+    const records = this.getAttendanceRecords();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const reverseIndex = records.slice().reverse().findIndex(r => r.date === todayStr && r.timeOut);
+    if (reverseIndex === -1) {
+      throw new Error('No completed shift found for today to resume.');
+    }
+
+    const actualIndex = records.length - 1 - reverseIndex;
+    const targetRecord = records[actualIndex];
+    const timeOutDate = new Date(targetRecord.timeOut!).getTime();
+    const now = Date.now();
+    if (now - timeOutDate > 30 * 60 * 1000) {
+      throw new Error('Shift resumption window has expired (must be within 30 minutes of Time-Out).');
+    }
+
+    const updatedRecord: AttendanceRecord = {
+      ...targetRecord,
+      timeOut: undefined,
+      netRenderedHours: undefined,
+      studentRemark: targetRecord.studentRemark
+        ? `${targetRecord.studentRemark} | [Resumed Shift]`
+        : '[Resumed Shift]'
+    };
+
+    records[actualIndex] = updatedRecord;
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(records));
+    return updatedRecord;
   },
 
   timeIn(latitude: number, longitude: number, accuracy: number, studentRemark?: string): AttendanceRecord {
@@ -115,9 +145,17 @@ export const guestStore = {
     // 3. Attendance State Validation (Proposal Section 5.9)
     const records = this.getAttendanceRecords();
     const todayStr = new Date().toISOString().split('T')[0];
-    const existingActive = records.find(r => r.date === todayStr && !r.timeOut);
+
+    // Check for any active shift in progress
+    const existingActive = records.find(r => !r.timeOut);
     if (existingActive) {
-      throw new Error('An active shift is already in progress for today. Please Time-Out before starting a new shift.');
+      throw new Error('An active shift is already in progress. Please Time-Out before starting a new shift.');
+    }
+
+    // Prevent infinite time-in/time-out: check if shift already completed for today
+    const existingCompleted = records.find(r => r.date === todayStr && r.timeOut);
+    if (existingCompleted) {
+      throw new Error('You have already completed your shift for today. Daily attendance is limited to one shift per day.');
     }
 
     const newRecord: AttendanceRecord = {

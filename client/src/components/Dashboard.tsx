@@ -102,6 +102,14 @@ export const Dashboard: React.FC = () => {
 
   const [showPermissionGuideModal, setShowPermissionGuideModal] = useState<boolean>(false);
 
+  const [showEarlyConfirmModal, setShowEarlyConfirmModal] = useState<boolean>(false);
+
+  const [earlyReasonCategory, setEarlyReasonCategory] = useState<string>('accidental');
+
+  const [earlyCustomNote, setEarlyCustomNote] = useState<string>('');
+
+  const [showResumeConfirmModal, setShowResumeConfirmModal] = useState<boolean>(false);
+
   const [promptBlockedAlert, setPromptBlockedAlert] = useState<boolean>(false);
 
   const [requestingLocation, setRequestingLocation] = useState<boolean>(false);
@@ -596,6 +604,84 @@ export const Dashboard: React.FC = () => {
   const isTargetReached = !!(status?.hasActiveShift && elapsedSeconds >= targetElapsedSeconds);
 
   const isMaxCapReached = !!(status?.hasActiveShift && (elapsedSeconds >= maxElapsedSeconds || grossElapsedHours >= maxDailyHours));
+
+  const isEarlyTimeOut = !!(status?.hasActiveShift && elapsedSeconds < targetElapsedSeconds);
+
+  const isShiftCompletedToday = !status?.hasActiveShift && !!status?.todayRecord?.timeOut;
+
+  const completedDurationSeconds = isShiftCompletedToday && status?.todayRecord?.timeIn && status?.todayRecord?.timeOut
+    ? Math.max(0, Math.floor((new Date(status.todayRecord.timeOut).getTime() - new Date(status.todayRecord.timeIn).getTime()) / 1000))
+    : 0;
+
+  const timeSinceTimeOutSeconds = isShiftCompletedToday && status?.todayRecord?.timeOut
+    ? Math.max(0, Math.floor((Date.now() - new Date(status.todayRecord.timeOut).getTime()) / 1000))
+    : 999999;
+
+  const canResumeShift = isShiftCompletedToday && timeSinceTimeOutSeconds <= 1800;
+
+  const calcEstimatedNetHours = (seconds: number) => {
+    const hours = seconds / 3600;
+    if (hours <= 4.0) {
+      return Math.max(0, Math.round(hours * 10) / 10);
+    }
+    const lunchHours = lunchMinutes / 60;
+    return Math.max(0, Math.round((hours - lunchHours) * 10) / 10);
+  };
+
+  const shortfallSec = Math.max(0, targetElapsedSeconds - elapsedSeconds);
+  const shortfallH = Math.floor(shortfallSec / 3600);
+  const shortfallM = Math.floor((shortfallSec % 3600) / 60);
+
+  const handleTimeOutClick = () => {
+    if (isEarlyTimeOut) {
+      setEarlyReasonCategory('accidental');
+      setEarlyCustomNote('');
+      setShowEarlyConfirmModal(true);
+      return;
+    }
+    handleTimeOut();
+  };
+
+  const handleConfirmEarlyTimeOut = async () => {
+    const categoryLabels: Record<string, string> = {
+      accidental: 'Accidental Punch / Testing',
+      medical: 'Medical / Feeling Sick',
+      permission: 'Company Permission / Sent Home Early',
+      school: 'School / Academic Activity',
+      emergency: 'Personal / Family Emergency',
+      other: 'Early Departure'
+    };
+    const categoryName = categoryLabels[earlyReasonCategory] || 'Early Time-Out';
+    const note = earlyCustomNote.trim();
+    const fullRemark = note ? `[Early Time-Out: ${categoryName}] ${note}` : `[Early Time-Out: ${categoryName}]`;
+
+    setShowEarlyConfirmModal(false);
+
+    if (geo.latitude === null || geo.longitude === null || !isWithinGeofence) {
+      setOutsidePunchType('out');
+      setOutsideReasonText(fullRemark);
+      setOutsideReasonModalOpen(true);
+      return;
+    }
+
+    await executePunch('out', fullRemark);
+  };
+
+  const handleResumeShift = async () => {
+    setLoadingAction(true);
+    setActionError(null);
+    try {
+      await api.attendance.resumeShift();
+      setShowResumeConfirmModal(false);
+      await loadData();
+      setCalibrationSuccess('Active shift successfully resumed! Your timer is running.');
+      setTimeout(() => setCalibrationSuccess(null), 4000);
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to resume shift.');
+    } finally {
+      setLoadingAction(false);
+    }
+  };
 
   return (
 
@@ -1144,6 +1230,8 @@ export const Dashboard: React.FC = () => {
 
           <span className={
 
+            isShiftCompletedToday ? 'text-emerald-400 font-bold' :
+
             isMaxCapReached ? 'text-rose-400 font-bold' :
 
             isTargetReached ? 'text-amber-400 font-bold' :
@@ -1152,7 +1240,9 @@ export const Dashboard: React.FC = () => {
 
           }>
 
-            {isMaxCapReached ? `Daily Cap Reached (${maxDailyHours}h Max)` :
+            {isShiftCompletedToday ? 'Shift Completed Today' :
+
+             isMaxCapReached ? `Daily Cap Reached (${maxDailyHours}h Max)` :
 
              isTargetReached ? `Target Reached (${scheduledHours}h + Overtime)` :
 
@@ -1166,6 +1256,8 @@ export const Dashboard: React.FC = () => {
 
         <div className={`text-4xl xs:text-5xl sm:text-6xl font-black tracking-tight font-mono mb-2 select-none ${
 
+          isShiftCompletedToday ? 'text-emerald-400' :
+
           isMaxCapReached ? 'text-rose-400' :
 
           isTargetReached ? 'text-amber-300' :
@@ -1174,7 +1266,11 @@ export const Dashboard: React.FC = () => {
 
         }`}>
 
-          {status?.hasActiveShift ? formatElapsed(elapsedSeconds) : '00:00:00'}
+          {status?.hasActiveShift
+            ? formatElapsed(elapsedSeconds)
+            : isShiftCompletedToday
+            ? formatElapsed(completedDurationSeconds)
+            : '00:00:00'}
 
         </div>
 
@@ -1329,9 +1425,9 @@ export const Dashboard: React.FC = () => {
         <p className="text-xs text-slate-400 mb-6 sm:mb-8 px-2 max-w-sm sm:max-w-md">
 
           {status?.hasActiveShift
-
             ? `Shift started at ${new Date(status.todayRecord!.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-
+            : isShiftCompletedToday
+            ? `Shift completed at ${new Date(status.todayRecord!.timeOut!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${status.todayRecord!.netRenderedHours?.toFixed(1) ?? '0.0'} hrs credited)`
             : 'Tap Time-In to start your OJT shift tracking for today'}
 
         </p>
@@ -1342,7 +1438,7 @@ export const Dashboard: React.FC = () => {
 
           <button
 
-            onClick={handleTimeOut}
+            onClick={handleTimeOutClick}
 
             disabled={loadingAction || geo.loading}
 
@@ -1363,6 +1459,42 @@ export const Dashboard: React.FC = () => {
             <span>TIME OUT</span>
 
           </button>
+
+        ) : isShiftCompletedToday ? (
+
+          <div className="flex flex-col items-center gap-3 w-full">
+
+            <div className="w-full sm:w-80 min-h-[54px] sm:min-h-[60px] py-3.5 px-6 sm:px-8 rounded-2xl font-bold text-base sm:text-lg text-emerald-300 bg-emerald-950/70 border border-emerald-500/40 shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-2.5 select-none">
+
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+
+              <span>SHIFT COMPLETED TODAY</span>
+
+            </div>
+
+            {canResumeShift && (
+
+              <button
+
+                type="button"
+
+                onClick={() => setShowResumeConfirmModal(true)}
+
+                disabled={loadingAction}
+
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold cursor-pointer transition-colors active:scale-95"
+
+              >
+
+                <RotateCcw className="w-3.5 h-3.5" />
+
+                <span>Accidental punch? Resume Shift ({Math.max(1, Math.ceil((1800 - timeSinceTimeOutSeconds) / 60))}m left)</span>
+
+              </button>
+
+            )}
+
+          </div>
 
         ) : (
 
@@ -1546,6 +1678,195 @@ export const Dashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Early Shift Time-Out Confirmation Modal */}
+      {showEarlyConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden relative max-h-[95dvh] flex flex-col">
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-start justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Early Shift Time-Out Warning</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                  Confirm Early Time-Out
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  You are clocking out before completing your required daily schedule ({scheduledHours.toFixed(1)} hrs).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEarlyConfirmModal(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Metrics Breakdown */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                  <div className="text-[11px] text-slate-400 font-medium">Time On-Duty</div>
+                  <div className="text-lg font-bold font-mono text-white mt-0.5">
+                    {formatElapsed(elapsedSeconds)}
+                  </div>
+                </div>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                  <div className="text-[11px] text-slate-400 font-medium">Daily Schedule</div>
+                  <div className="text-lg font-bold font-mono text-sky-400 mt-0.5">
+                    {scheduledHours.toFixed(1)} hrs
+                  </div>
+                </div>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                  <div className="text-[11px] text-slate-400 font-medium">Remaining Shortfall</div>
+                  <div className="text-lg font-bold font-mono text-rose-400 mt-0.5">
+                    {shortfallH > 0 ? `${shortfallH}h ` : ''}{shortfallM}m
+                  </div>
+                </div>
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                  <div className="text-[11px] text-slate-400 font-medium">Est. Net Credited</div>
+                  <div className="text-lg font-bold font-mono text-amber-300 mt-0.5">
+                    ~{calcEstimatedNetHours(elapsedSeconds).toFixed(1)} hrs
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-200/90 leading-relaxed">
+                <strong>Notice:</strong> Once you time out, your attendance record for today will be closed and submitted to your supervisor. Daily attendance is limited to one shift per day.
+              </div>
+
+              {/* Reason Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                  Select Reason for Early Departure:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { id: 'accidental', label: '🧪 Accidental Punch / Testing' },
+                    { id: 'medical', label: '🏥 Medical / Feeling Sick' },
+                    { id: 'permission', label: '🏢 Sent Home / Company Permission' },
+                    { id: 'school', label: '🎓 School / Academic Activity' },
+                    { id: 'emergency', label: '🚨 Personal / Family Emergency' },
+                    { id: 'other', label: '✏️ Other Reason' }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setEarlyReasonCategory(opt.id)}
+                      className={`text-left text-xs p-2.5 rounded-xl border transition-all cursor-pointer ${
+                        earlyReasonCategory === opt.id
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-200 font-semibold'
+                          : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom note */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Additional Details / Note for Coordinator (Optional)
+                </label>
+                <textarea
+                  value={earlyCustomNote}
+                  onChange={(e) => setEarlyCustomNote(e.target.value)}
+                  placeholder="e.g. Sent home early due to company half-day; approved by supervisor"
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 sm:p-5 border-t border-slate-800/80 bg-slate-950/50 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowEarlyConfirmModal(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Keep Shift Active (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEarlyTimeOut}
+                disabled={loadingAction}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-amber-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {loadingAction ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                <span>Confirm Early Time-Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Shift Confirmation Modal */}
+      {showResumeConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden relative flex flex-col">
+            <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-start justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                  <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                  <span>Shift Recovery</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                  Resume Today's Shift?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Reactivate your shift to continue logging OJT hours for today.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResumeConfirmModal(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-3 text-xs text-slate-300">
+              <p>
+                Did you accidentally click <strong>TIME OUT</strong>?
+              </p>
+              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-1 text-slate-400">
+                <div>Started: <strong className="text-white">{status?.todayRecord?.timeIn ? new Date(status.todayRecord.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</strong></div>
+                <div>Timed Out: <strong className="text-white">{status?.todayRecord?.timeOut ? new Date(status.todayRecord.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</strong></div>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Resuming will re-open your active shift and restore your live attendance stopwatch.
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 border-t border-slate-800/80 bg-slate-950/50 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowResumeConfirmModal(false)}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResumeShift}
+                disabled={loadingAction}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-sky-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {loadingAction ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                <span>Yes, Resume Shift</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Outside Perimeter Explanation Modal */}
       {outsideReasonModalOpen && (

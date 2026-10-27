@@ -18,20 +18,33 @@ public static class AttendanceEndpoints
 
             var setting = await GetEffectiveSettingAsync(db, userId.Value);
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            // 1. Check for ANY active shift in progress across all dates
+            var activeRecord = await db.AttendanceRecords
+                .FirstOrDefaultAsync(a => a.UserId == userId.Value && a.TimeOut == null);
 
-            // Check if there is an active shift
-            var existingRecord = await db.AttendanceRecords
-                .FirstOrDefaultAsync(a => a.UserId == userId.Value && a.Date == today);
-
-            if (existingRecord != null && existingRecord.TimeOut == null)
+            if (activeRecord != null)
             {
-                return Results.BadRequest(new { message = "You already have an active shift for today. Please Time-Out first." });
+                return Results.BadRequest(new { message = "You already have an active shift in progress. Please Time-Out before starting a new shift." });
             }
 
-            if (existingRecord != null && existingRecord.TimeOut != null)
+            var punchTime = DateTimeOffset.UtcNow;
+            if (req.ClientTimestamp.HasValue && 
+                req.ClientTimestamp.Value <= DateTimeOffset.UtcNow.AddMinutes(10) && 
+                req.ClientTimestamp.Value >= DateTimeOffset.UtcNow.AddDays(-7))
             {
-                return Results.BadRequest(new { message = "You have already completed your shift for today." });
+                punchTime = req.ClientTimestamp.Value;
+            }
+
+            var punchDate = DateOnly.FromDateTime(punchTime.UtcDateTime);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            // 2. Prevent infinite punches: check if user already completed a shift today
+            var completedToday = await db.AttendanceRecords
+                .FirstOrDefaultAsync(a => a.UserId == userId.Value && (a.Date == punchDate || a.Date == today) && a.TimeOut != null);
+
+            if (completedToday != null)
+            {
+                return Results.BadRequest(new { message = "You have already completed your shift for today. Daily attendance is limited to one shift per day." });
             }
 
             // Calculate Haversine distance
@@ -61,14 +74,6 @@ public static class AttendanceEndpoints
             else if (req.Accuracy > setting.GpsAccuracyThreshold)
             {
                 accuracyRemark = $"Logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit); recorded for supervisor review.";
-            }
-
-            var punchTime = DateTimeOffset.UtcNow;
-            if (req.ClientTimestamp.HasValue && 
-                req.ClientTimestamp.Value <= DateTimeOffset.UtcNow.AddMinutes(10) && 
-                req.ClientTimestamp.Value >= DateTimeOffset.UtcNow.AddDays(-7))
-            {
-                punchTime = req.ClientTimestamp.Value;
             }
 
             var record = new AttendanceRecord
@@ -143,7 +148,10 @@ public static class AttendanceEndpoints
             var maxCapHours = setting != null && setting.MaxDailyHours > 0 ? setting.MaxDailyHours : 10.0m;
             var netHours = attendanceService.CalculateNetHours(record.TimeIn, now, lunchMinutes, maxCapHours);
 
-            if ((decimal)(now - record.TimeIn).TotalHours >= maxCapHours && string.IsNullOrWhiteSpace(record.SupervisorRemark))
+            var elapsedShiftHours = (decimal)(now - record.TimeIn).TotalHours;
+            var scheduledDailyHours = setting?.DailyScheduleHours ?? 8.0m;
+
+            if (elapsedShiftHours >= maxCapHours && string.IsNullOrWhiteSpace(record.SupervisorRemark))
             {
                 record.SupervisorRemark = $"Reached maximum daily cap ({maxCapHours:F1}h limit set by teacher); excess time capped.";
             }
@@ -172,12 +180,21 @@ public static class AttendanceEndpoints
             record.LunchBreakMinutes = lunchMinutes;
             record.NetRenderedHours = netHours;
 
+            // Flag early departure if shift duration is less than scheduled hours
+            var isEarlyDeparture = elapsedShiftHours < scheduledDailyHours;
             if (!string.IsNullOrWhiteSpace(req.StudentRemark))
             {
                 var trimmed = req.StudentRemark.Trim();
                 record.StudentRemark = string.IsNullOrWhiteSpace(record.StudentRemark)
                     ? trimmed
                     : $"{record.StudentRemark} | Time-out: {trimmed}";
+            }
+            else if (isEarlyDeparture)
+            {
+                var earlyTag = $"[Early Departure: {elapsedShiftHours:F1}h on duty / {scheduledDailyHours:F1}h scheduled]";
+                record.StudentRemark = string.IsNullOrWhiteSpace(record.StudentRemark)
+                    ? earlyTag
+                    : $"{record.StudentRemark} | {earlyTag}";
             }
 
             await db.SaveChangesAsync();
@@ -189,22 +206,64 @@ public static class AttendanceEndpoints
         .WithName("TimeOut")
         .WithTags("Attendance");
 
+        group.MapPost("/resume-shift", async (ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var userId = GetUserId(principal);
+            if (userId == null) return Results.Unauthorized();
+
+            var now = DateTimeOffset.UtcNow;
+            var today = DateOnly.FromDateTime(now.UtcDateTime);
+
+            // Find the most recently completed shift for today (or within last 30 minutes)
+            var record = await db.AttendanceRecords
+                .Where(a => a.UserId == userId.Value && a.TimeOut != null && (a.Date == today || a.TimeOut >= now.AddMinutes(-30)))
+                .OrderByDescending(a => a.TimeOut)
+                .FirstOrDefaultAsync();
+
+            if (record == null)
+            {
+                return Results.BadRequest(new { message = "No recent completed shift was found to resume." });
+            }
+
+            // Must be within 30-minute grace window
+            if (!record.TimeOut.HasValue || now - record.TimeOut.Value > TimeSpan.FromMinutes(30))
+            {
+                return Results.BadRequest(new { message = "Shift resumption window has expired (must be within 30 minutes of Time-Out). Please consult your supervisor for adjustments." });
+            }
+
+            // Clear TimeOut and NetRenderedHours to reactivate shift
+            record.TimeOut = null;
+            record.NetRenderedHours = null;
+            record.StudentRemark = string.IsNullOrWhiteSpace(record.StudentRemark)
+                ? $"[Shift Resumed at {now:HH:mm} UTC]"
+                : $"{record.StudentRemark} | [Shift Resumed at {now:HH:mm} UTC]";
+
+            await db.SaveChangesAsync();
+
+            var user = await db.Users.FindAsync(userId.Value);
+            return Results.Ok(ToDto(record, user?.FullName ?? "Trainee"));
+        })
+        .RequireAuthorization()
+        .WithName("ResumeShift")
+        .WithTags("Attendance");
+
         group.MapGet("/status", async (ClaimsPrincipal principal, OJTHubDbContext db) =>
         {
             var userId = GetUserId(principal);
             if (userId == null) return Results.Unauthorized();
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var now = DateTimeOffset.UtcNow;
+            var today = DateOnly.FromDateTime(now.UtcDateTime);
             var records = await db.AttendanceRecords
                 .Include(a => a.User)
                 .Include(a => a.PerimeterLogs)
-                .Where(a => a.UserId == userId.Value && (a.Date == today || a.TimeOut == null))
+                .Where(a => a.UserId == userId.Value && (a.Date == today || a.TimeOut == null || a.TimeOut >= now.AddHours(-18)))
                 .OrderByDescending(a => a.Date)
+                .ThenByDescending(a => a.TimeIn)
                 .ToListAsync();
 
             var record = records
-                .OrderByDescending(a => a.Date)
-                .ThenByDescending(a => a.TimeIn)
+                .OrderByDescending(a => a.TimeIn)
                 .FirstOrDefault();
 
             var setting = await GetEffectiveSettingAsync(db, userId.Value);

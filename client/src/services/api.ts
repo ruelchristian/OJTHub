@@ -184,6 +184,20 @@ export const api = {
       }
     },
 
+    async resumeShift(): Promise<AttendanceRecord> {
+      if (isGuestUser()) {
+        return guestStore.resumeShift();
+      }
+      const res = await fetch(`${API_BASE}/attendance/resume-shift`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        }
+      });
+      return await handleResponse<AttendanceRecord>(res);
+    },
+
     async syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
       if (isGuestUser() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
         return { synced: 0, remaining: offlineQueue.getTotalPendingCount() };
