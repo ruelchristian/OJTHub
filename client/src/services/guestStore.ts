@@ -85,26 +85,29 @@ export const guestStore = {
 
   timeIn(latitude: number, longitude: number, accuracy: number, studentRemark?: string): AttendanceRecord {
     const settings = this.getSettings();
+    const isNoGps = latitude === 0 && longitude === 0;
 
     // 1. GPS Accuracy Validation (Proposal Section 5.8)
-    if (accuracy > settings.gpsAccuracyThreshold) {
+    if (!isNoGps && accuracy > settings.gpsAccuracyThreshold) {
       throw new Error(
         `GPS signal accuracy (${Math.round(accuracy)}m) does not meet the minimum requirement of ${settings.gpsAccuracyThreshold}m. Please move to an open area.`
       );
     }
 
     // 2. Geofence Distance Validation (Proposal Section 5.7)
-    const distance = calculateDistanceMeters(
+    const distance = isNoGps ? 0 : calculateDistanceMeters(
       latitude,
       longitude,
       settings.workplaceLatitude,
       settings.workplaceLongitude
     );
 
-    const isWithin = distance <= settings.geofenceRadiusMeters;
+    const isWithin = isNoGps ? false : distance <= settings.geofenceRadiusMeters;
     if (!isWithin && !studentRemark) {
       throw new Error(
-        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
+        isNoGps
+          ? 'Device location is disabled or unavailable. Please provide an explanation for your supervisor.'
+          : `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
       );
     }
 
@@ -139,26 +142,29 @@ export const guestStore = {
 
   timeOut(latitude: number, longitude: number, accuracy: number, customLunchMinutes?: number, studentRemark?: string): AttendanceRecord {
     const settings = this.getSettings();
+    const isNoGps = latitude === 0 && longitude === 0;
 
     // 1. GPS Accuracy Validation
-    if (accuracy > settings.gpsAccuracyThreshold) {
+    if (!isNoGps && accuracy > settings.gpsAccuracyThreshold) {
       throw new Error(
         `GPS signal accuracy (${Math.round(accuracy)}m) does not meet the minimum requirement of ${settings.gpsAccuracyThreshold}m.`
       );
     }
 
     // 2. Geofence Distance Validation
-    const distance = calculateDistanceMeters(
+    const distance = isNoGps ? 0 : calculateDistanceMeters(
       latitude,
       longitude,
       settings.workplaceLatitude,
       settings.workplaceLongitude
     );
 
-    const isWithin = distance <= settings.geofenceRadiusMeters;
+    const isWithin = isNoGps ? false : distance <= settings.geofenceRadiusMeters;
     if (!isWithin && !studentRemark) {
       throw new Error(
-        `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
+        isNoGps
+          ? 'Device location is disabled or unavailable. Please provide an explanation for your supervisor.'
+          : `Outside workplace perimeter (${distance.toFixed(1)}m away). Maximum allowed radius is ${settings.geofenceRadiusMeters}m. Please provide an explanation.`
       );
     }
 

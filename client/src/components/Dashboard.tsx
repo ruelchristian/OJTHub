@@ -102,6 +102,8 @@ export const Dashboard: React.FC = () => {
 
   const [showPermissionGuideModal, setShowPermissionGuideModal] = useState<boolean>(false);
 
+  const [promptBlockedAlert, setPromptBlockedAlert] = useState<boolean>(false);
+
   const [requestingLocation, setRequestingLocation] = useState<boolean>(false);
 
   const [selectedGuideTab, setSelectedGuideTab] = useState<'android' | 'ios' | 'desktop'>(() => {
@@ -499,6 +501,7 @@ export const Dashboard: React.FC = () => {
   const handleTurnOnLocation = async () => {
     setRequestingLocation(true);
     setActionError(null);
+    setPromptBlockedAlert(false);
     try {
       const granted = await geo.requestPermission();
       if (!granted) {
@@ -510,19 +513,29 @@ export const Dashboard: React.FC = () => {
   };
 
   const executePunch = async (punchType: 'in' | 'out', studentRemark?: string) => {
-    if (geo.latitude === null || geo.longitude === null || geo.accuracy === null) {
-      await handleTurnOnLocation();
+    const hasCoords = geo.latitude !== null && geo.longitude !== null && geo.accuracy !== null;
+    if (!hasCoords && !studentRemark) {
+      setOutsidePunchType(punchType);
+      setOutsideReasonText('');
+      setOutsideReasonModalOpen(true);
       return;
     }
 
     setActionError(null);
     setLoadingAction(true);
 
+    const lat = geo.latitude ?? 0;
+    const lng = geo.longitude ?? 0;
+    const acc = geo.accuracy ?? 0;
+    const effectiveRemark = !hasCoords
+      ? (studentRemark ? `[No GPS Fix] ${studentRemark}` : '[No GPS Fix - Location Disabled]')
+      : studentRemark;
+
     try {
       if (punchType === 'in') {
-        await api.attendance.timeIn(geo.latitude, geo.longitude, geo.accuracy, undefined, studentRemark);
+        await api.attendance.timeIn(lat, lng, acc, undefined, effectiveRemark);
       } else {
-        await api.attendance.timeOut(geo.latitude, geo.longitude, geo.accuracy, undefined, undefined, studentRemark);
+        await api.attendance.timeOut(lat, lng, acc, undefined, undefined, effectiveRemark);
       }
 
       setOutsideReasonModalOpen(false);
@@ -538,7 +551,9 @@ export const Dashboard: React.FC = () => {
 
   const handleTimeIn = async () => {
     if (geo.latitude === null || geo.longitude === null) {
-      await handleTurnOnLocation();
+      setOutsidePunchType('in');
+      setOutsideReasonText('');
+      setOutsideReasonModalOpen(true);
       return;
     }
     if (!isWithinGeofence) {
@@ -552,7 +567,9 @@ export const Dashboard: React.FC = () => {
 
   const handleTimeOut = async () => {
     if (geo.latitude === null || geo.longitude === null) {
-      await handleTurnOnLocation();
+      setOutsidePunchType('out');
+      setOutsideReasonText('');
+      setOutsideReasonModalOpen(true);
       return;
     }
     if (!isWithinGeofence) {
@@ -1015,7 +1032,7 @@ export const Dashboard: React.FC = () => {
 
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
 
               <button
 
@@ -1040,6 +1057,28 @@ export const Dashboard: React.FC = () => {
                 )}
 
                 <span>Turn On Location</span>
+
+              </button>
+
+              <button
+
+                type="button"
+
+                onClick={() => {
+                  setOutsidePunchType(status?.hasActiveShift ? 'out' : 'in');
+                  setOutsideReasonText('');
+                  setOutsideReasonModalOpen(true);
+                }}
+
+                className="flex-1 sm:flex-initial min-h-[40px] px-3.5 py-2 rounded-xl border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+
+                title="Clock in or out by submitting an explanation to your supervisor"
+
+              >
+
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+
+                <span>{status?.hasActiveShift ? 'Clock Out (No GPS)' : 'Clock In (No GPS)'}</span>
 
               </button>
 
@@ -1511,15 +1550,29 @@ export const Dashboard: React.FC = () => {
             {/* Header */}
             <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-start justify-between gap-3">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30 mb-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Outside Workplace Perimeter ({currentDistance !== null ? `${currentDistance}m away` : 'Off-site'})</span>
+                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 ${
+                  geo.latitude === null
+                    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                    : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                }`}>
+                  {geo.latitude === null ? (
+                    <MapPinOff className="w-3.5 h-3.5 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                  <span>
+                    {geo.latitude === null
+                      ? 'Device Location Disabled / No GPS'
+                      : `Outside Workplace Perimeter (${currentDistance !== null ? `${currentDistance}m away` : 'Off-site'})`}
+                  </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
-                  {outsidePunchType === 'in' ? 'Time-In' : 'Time-Out'} Explanation Required
+                  {outsidePunchType === 'in' ? 'Time-In' : 'Time-Out'} {geo.latitude === null ? 'Without GPS' : 'Explanation Required'}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  You are currently outside your assigned workplace boundary ({allowedRadius}m radius). Provide an explanation so your instructor/supervisor has context to verify your shift.
+                  {geo.latitude === null
+                    ? 'Your device does not have GPS location active. Provide an explanation so your instructor/supervisor has context to review and verify your shift.'
+                    : `You are currently outside your assigned workplace boundary (${allowedRadius}m radius). Provide an explanation so your instructor/supervisor has context to verify your shift.`}
                 </p>
               </div>
               <button
@@ -1537,12 +1590,20 @@ export const Dashboard: React.FC = () => {
                   Quick Select Reason
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    '🏢 Company errand / client site visit',
-                    '🚗 Fieldwork / off-site assignment',
-                    '🛰️ Weak GPS reception inside building',
-                    '📦 Official pickup / delivery duty'
-                  ].map((preset) => (
+                  {(geo.latitude === null
+                    ? [
+                        '📱 Location blocked in browser / device settings',
+                        '🏢 Inside building / weak satellite reception',
+                        '🔋 Device battery saver disabled GPS services',
+                        '🚗 Official fieldwork / off-site duty'
+                      ]
+                    : [
+                        '🏢 Company errand / client site visit',
+                        '🚗 Fieldwork / off-site assignment',
+                        '🛰️ Weak GPS reception inside building',
+                        '📦 Official pickup / delivery duty'
+                      ]
+                  ).map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -1566,7 +1627,7 @@ export const Dashboard: React.FC = () => {
                 <textarea
                   value={outsideReasonText}
                   onChange={(e) => setOutsideReasonText(e.target.value)}
-                  placeholder="Specify who dispatched you, task description, or reason for clocking outside..."
+                  placeholder={geo.latitude === null ? "Explain why location is off (e.g. browser permission blocked, device issue)..." : "Specify who dispatched you, task description, or reason for clocking outside..."}
                   rows={3}
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors resize-none"
                 />
@@ -1575,7 +1636,9 @@ export const Dashboard: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 flex items-start gap-2.5 text-[11px] text-slate-400">
                 <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <span>
-                  This note will be recorded permanently with your GPS coordinates ({geo.latitude?.toFixed(5)}, {geo.longitude?.toFixed(5)}) and displayed directly in your supervisor's verification console.
+                  {geo.latitude !== null
+                    ? `This note will be recorded permanently with your GPS coordinates (${geo.latitude?.toFixed(5)}, ${geo.longitude?.toFixed(5)}) and displayed directly in your supervisor's verification console.`
+                    : "This note will be recorded permanently with a 'No GPS Fix' tag and forwarded directly to your supervisor's verification console for review."}
                 </span>
               </div>
             </div>
@@ -1754,9 +1817,26 @@ export const Dashboard: React.FC = () => {
                 </>
               )}
 
+              {promptBlockedAlert && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2.5 animate-fade-in">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-rose-100 flex items-center gap-1.5">
+                      <span>Browser Blocked the Prompt</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-rose-200/90 leading-relaxed">
+                      Your browser previously set this site to "Block". The browser engine will not show the prompt again until you tap the Lock (🔒) or Tune (🎚️) icon in your browser address bar above and toggle Location to "Allow".
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-amber-300 font-medium">
+                      Tip: You can also tap "Proceed Without GPS" below to submit your attendance with an explanation for your teacher!
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-2">
                 <Info className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>Tip: You can also tap "Try Prompt Again" to see if the browser displays the permission banner.</span>
+                <span>Tip: Tap "Try Prompt Again" to re-check if your browser allows the prompt, or toggle the address bar lock icon.</span>
               </div>
             </div>
 
@@ -1766,11 +1846,37 @@ export const Dashboard: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setShowPermissionGuideModal(false);
-                  handleTurnOnLocation();
+                  setOutsidePunchType(status?.hasActiveShift ? 'out' : 'in');
+                  setOutsideReasonText('');
+                  setOutsideReasonModalOpen(true);
                 }}
-                className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 text-xs font-bold text-amber-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Navigation className="w-3.5 h-3.5 text-sky-400" />
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Proceed Without GPS</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={requestingLocation}
+                onClick={async () => {
+                  setRequestingLocation(true);
+                  setPromptBlockedAlert(false);
+                  const granted = await geo.requestPermission();
+                  setRequestingLocation(false);
+                  if (granted) {
+                    setShowPermissionGuideModal(false);
+                  } else {
+                    setPromptBlockedAlert(true);
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {requestingLocation ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                ) : (
+                  <Navigation className="w-3.5 h-3.5 text-sky-400" />
+                )}
                 <span>Try Prompt Again</span>
               </button>
               <button

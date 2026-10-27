@@ -35,16 +35,30 @@ public static class AttendanceEndpoints
             }
 
             // Calculate Haversine distance
-            var distance = attendanceService.CalculateDistanceMeters(
-                req.Latitude, req.Longitude,
-                setting.WorkplaceLatitude, setting.WorkplaceLongitude
-            );
+            decimal distance = 0;
+            bool withinGeofence = false;
 
-            var withinGeofence = distance <= setting.GeofenceRadiusMeters;
+            if (req.Latitude == 0 && req.Longitude == 0)
+            {
+                distance = 0;
+                withinGeofence = false;
+            }
+            else
+            {
+                distance = attendanceService.CalculateDistanceMeters(
+                    req.Latitude, req.Longitude,
+                    setting.WorkplaceLatitude, setting.WorkplaceLongitude
+                );
+                withinGeofence = distance <= setting.GeofenceRadiusMeters;
+            }
 
-            // Telemetry & Audit: If GPS accuracy exceeds coordinator threshold, record remark for supervisor review rather than blocking attendance
+            // Telemetry & Audit: If GPS accuracy exceeds coordinator threshold or no GPS fix, record remark for supervisor review
             string? accuracyRemark = null;
-            if (req.Accuracy > setting.GpsAccuracyThreshold)
+            if (req.Latitude == 0 && req.Longitude == 0)
+            {
+                accuracyRemark = "Time-In logged without GPS coordinates (device location disabled/unavailable); requires supervisor review.";
+            }
+            else if (req.Accuracy > setting.GpsAccuracyThreshold)
             {
                 accuracyRemark = $"Logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit); recorded for supervisor review.";
             }
@@ -104,7 +118,12 @@ public static class AttendanceEndpoints
             decimal distance = 0;
             bool withinGeofence = true;
 
-            if (setting != null)
+            if (req.Latitude == 0 && req.Longitude == 0)
+            {
+                distance = 0;
+                withinGeofence = false;
+            }
+            else if (setting != null)
             {
                 distance = attendanceService.CalculateDistanceMeters(
                     req.Latitude, req.Longitude,
@@ -129,7 +148,14 @@ public static class AttendanceEndpoints
                 record.SupervisorRemark = "Extended shift (>12 hours logged; flagged for supervisor verification)";
             }
 
-            if (setting != null && req.Accuracy > setting.GpsAccuracyThreshold)
+            if (req.Latitude == 0 && req.Longitude == 0)
+            {
+                var noGpsTimeout = "Time-out logged without GPS coordinates (device location disabled/unavailable)";
+                record.SupervisorRemark = string.IsNullOrWhiteSpace(record.SupervisorRemark)
+                    ? noGpsTimeout
+                    : $"{record.SupervisorRemark} | {noGpsTimeout}";
+            }
+            else if (setting != null && req.Accuracy > setting.GpsAccuracyThreshold)
             {
                 var timeoutNote = $"Time-out logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit)";
                 record.SupervisorRemark = string.IsNullOrWhiteSpace(record.SupervisorRemark)
