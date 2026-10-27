@@ -14,35 +14,20 @@ public static class ReportEndpoints
         group.MapPost("/ai-generate", async (GenerateReportRequest req, ClaimsPrincipal principal, OJTHubDbContext db, IGeminiService geminiService, CancellationToken ct) =>
         {
             var userId = GetUserId(principal);
-            List<ActivityLog> activities;
+            if (userId == null) return Results.Unauthorized();
 
-            if (userId.HasValue)
-            {
-                activities = await db.ActivityLogs
-                    .Where(a => a.UserId == userId.Value && a.Date >= req.StartDate && a.Date <= req.EndDate)
-                    .OrderBy(a => a.Date)
-                    .ToListAsync(ct);
-            }
-            else if (req.GuestActivities != null && req.GuestActivities.Count > 0)
-            {
-                activities = req.GuestActivities.Select(g => new ActivityLog
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = Guid.Empty,
-                    Date = g.Date,
-                    TaskTitle = g.TaskTitle,
-                    Details = g.Details,
-                    HoursSpent = g.HoursSpent,
-                    Category = g.Category ?? "General",
-                    CreatedAt = DateTimeOffset.UtcNow
-                }).ToList();
-            }
-            else
-            {
-                activities = new List<ActivityLog>();
-            }
+            // Sanitize & enforce input bounds
+            var sanitizedNotes = !string.IsNullOrWhiteSpace(req.CustomNotes)
+                ? (req.CustomNotes.Length > 2000 ? req.CustomNotes[..2000] : req.CustomNotes.Trim())
+                : null;
 
-            var draft = await geminiService.GenerateReportAsync(req.ReportType, activities, req.CustomNotes, ct);
+            var activities = await db.ActivityLogs
+                .Where(a => a.UserId == userId.Value && a.Date >= req.StartDate && a.Date <= req.EndDate)
+                .OrderBy(a => a.Date)
+                .Take(100) // Bound max activities per prompt
+                .ToListAsync(ct);
+
+            var draft = await geminiService.GenerateReportAsync(req.ReportType, activities, sanitizedNotes, ct);
 
             return Results.Ok(new
             {
@@ -53,7 +38,7 @@ public static class ReportEndpoints
                 referencedActivitiesCount = activities.Count
             });
         })
-        .AllowAnonymous()
+        .RequireAuthorization()
         .WithName("GenerateAiReport")
         .WithTags("Reports");
 

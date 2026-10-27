@@ -624,6 +624,38 @@ export const api = {
         body: JSON.stringify({ traineeId, onlyWithinGeofence, defaultRemark })
       });
       return handleResponse<{ message: string; count: number }>(res);
+    },
+
+    async manualEntry(traineeId: string, data: { date: string; timeIn: string; timeOut: string; netHours: number; reason: string }): Promise<{ message: string; recordId: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/trainees/${traineeId}/attendance/manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(data)
+      });
+      return handleResponse<{ message: string; recordId: string }>(res);
+    },
+
+    async updateAttendance(recordId: string, data: { timeIn?: string; timeOut?: string; netRenderedHours?: number; supervisorRemark?: string; isVerified?: boolean }): Promise<{ message: string; recordId: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/attendance/${recordId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(data)
+      });
+      return handleResponse<{ message: string; recordId: string }>(res);
+    },
+
+    async deleteAttendance(recordId: string): Promise<{ message: string }> {
+      const res = await fetch(`${API_BASE}/supervisor/attendance/${recordId}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeader() }
+      });
+      return handleResponse<{ message: string }>(res);
     }
   },
 
@@ -631,24 +663,24 @@ export const api = {
     async syncGuestToCloud(token: string): Promise<void> {
       if (!guestStore.hasGuestData()) return;
 
-      const settings = guestStore.getSettings();
       const authHeader = { Authorization: `Bearer ${token}` };
 
-      // 1. Sync Settings
+      // Check current user profile before syncing to prevent overwriting supervisor accounts
       try {
-        await fetch(`${API_BASE}/settings`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeader
-          },
-          body: JSON.stringify(settings)
-        });
-      } catch (e) {
-        console.warn('Sync settings error', e);
+        const userRes = await fetch(`${API_BASE}/auth/me`, { headers: authHeader });
+        if (userRes.ok) {
+          const user = await userRes.json();
+          // Never sync guest settings into an authorized instructor/supervisor profile!
+          if (user.role === 'Supervisor') {
+            guestStore.clearGuestData();
+            return;
+          }
+        }
+      } catch {
+        // Continue if profile check fails
       }
 
-      // 2. Sync Activities
+      // Sync guest activities
       const activities = guestStore.getActivities();
       for (const act of activities) {
         try {

@@ -80,22 +80,27 @@ public static class SupervisorEndpoints
                 trainee.Department = supervisor.Department;
             }
 
-            // If supervisor has configured workplace settings, copy company details to trainee
+            // If supervisor has configured settings, inherit class rules while preserving any existing trainee company location
             if (supervisor.OjtSetting != null)
             {
                 if (trainee.OjtSetting == null)
                 {
-                    trainee.OjtSetting = new OjtSetting { UserId = trainee.Id };
+                    trainee.OjtSetting = new OjtSetting
+                    {
+                        UserId = trainee.Id,
+                        CompanyName = supervisor.OjtSetting.CompanyName,
+                        WorkplaceLatitude = supervisor.OjtSetting.WorkplaceLatitude,
+                        WorkplaceLongitude = supervisor.OjtSetting.WorkplaceLongitude,
+                        GeofenceRadiusMeters = supervisor.OjtSetting.GeofenceRadiusMeters
+                    };
                     db.OjtSettings.Add(trainee.OjtSetting);
                 }
 
-                trainee.OjtSetting.CompanyName = supervisor.OjtSetting.CompanyName;
-                trainee.OjtSetting.WorkplaceLatitude = supervisor.OjtSetting.WorkplaceLatitude;
-                trainee.OjtSetting.WorkplaceLongitude = supervisor.OjtSetting.WorkplaceLongitude;
-                trainee.OjtSetting.GeofenceRadiusMeters = supervisor.OjtSetting.GeofenceRadiusMeters;
                 trainee.OjtSetting.GpsAccuracyThreshold = supervisor.OjtSetting.GpsAccuracyThreshold;
                 trainee.OjtSetting.TargetTotalHours = supervisor.OjtSetting.TargetTotalHours;
                 trainee.OjtSetting.DailyScheduleHours = supervisor.OjtSetting.DailyScheduleHours;
+                trainee.OjtSetting.MaxDailyHours = supervisor.OjtSetting.MaxDailyHours;
+                trainee.OjtSetting.AllowWeekendPunches = supervisor.OjtSetting.AllowWeekendPunches;
                 trainee.OjtSetting.DefaultLunchMinutes = supervisor.OjtSetting.DefaultLunchMinutes;
                 trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
             }
@@ -194,7 +199,8 @@ public static class SupervisorEndpoints
                         true,
                         t.FullName,
                         supervisorId.Value,
-                        t.OjtSetting.MaxDailyHours
+                        t.OjtSetting.MaxDailyHours,
+                        t.OjtSetting.AllowWeekendPunches
                     );
                 }
 
@@ -293,6 +299,7 @@ public static class SupervisorEndpoints
             trainee.OjtSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             trainee.OjtSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
             trainee.OjtSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
+            trainee.OjtSetting.AllowWeekendPunches = req.AllowWeekendPunches;
             trainee.OjtSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -324,6 +331,7 @@ public static class SupervisorEndpoints
             supervisorSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             supervisorSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
             supervisorSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
+            supervisorSetting.AllowWeekendPunches = req.AllowWeekendPunches;
             supervisorSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             supervisorSetting.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -346,14 +354,21 @@ public static class SupervisorEndpoints
                     db.OjtSettings.Add(trainee.OjtSetting);
                 }
 
-                trainee.OjtSetting.CompanyName = req.CompanyName?.Trim() ?? trainee.OjtSetting.CompanyName;
-                trainee.OjtSetting.WorkplaceLatitude = req.WorkplaceLatitude;
-                trainee.OjtSetting.WorkplaceLongitude = req.WorkplaceLongitude;
-                trainee.OjtSetting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;
+                // Only overwrite workplace location if coordinator explicitly checked OverwriteWorkplaceLocation
+                if (req.OverwriteWorkplaceLocation)
+                {
+                    trainee.OjtSetting.CompanyName = req.CompanyName?.Trim() ?? trainee.OjtSetting.CompanyName;
+                    trainee.OjtSetting.WorkplaceLatitude = req.WorkplaceLatitude;
+                    trainee.OjtSetting.WorkplaceLongitude = req.WorkplaceLongitude;
+                    trainee.OjtSetting.GeofenceRadiusMeters = req.GeofenceRadiusMeters > 0 ? req.GeofenceRadiusMeters : 100;
+                }
+
+                // Always apply institutional policy rules
                 trainee.OjtSetting.GpsAccuracyThreshold = req.GpsAccuracyThreshold > 0 ? req.GpsAccuracyThreshold : 250;
                 trainee.OjtSetting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
                 trainee.OjtSetting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
                 trainee.OjtSetting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
+                trainee.OjtSetting.AllowWeekendPunches = req.AllowWeekendPunches;
                 trainee.OjtSetting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
                 trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
             }
@@ -446,6 +461,115 @@ public static class SupervisorEndpoints
         })
         .RequireAuthorization(policy => policy.RequireRole("Supervisor"))
         .WithName("BatchVerifyAttendance")
+        .WithTags("Supervisor");
+
+        group.MapPost("/trainees/{traineeId:guid}/attendance/manual", async (Guid traineeId, ManualAttendanceEntryRequest req, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var supervisorId = GetUserId(principal);
+            if (supervisorId == null) return Results.Unauthorized();
+
+            var trainee = await db.Users
+                .Include(u => u.OjtSetting)
+                .FirstOrDefaultAsync(u => u.Id == traineeId && u.SupervisorId == supervisorId.Value);
+
+            if (trainee == null) return Results.NotFound(new { message = "Trainee not found or not assigned to your supervision." });
+
+            if (req.NetHours <= 0 || req.NetHours > 16.0m)
+            {
+                return Results.BadRequest(new { message = "Net credited hours must be between 0.1 and 16.0 hours." });
+            }
+
+            var supervisor = await db.Users.FindAsync(supervisorId.Value);
+            var record = new AttendanceRecord
+            {
+                UserId = traineeId,
+                Date = req.Date,
+                TimeIn = req.TimeIn,
+                TimeOut = req.TimeOut,
+                TimeInWithinGeofence = true,
+                TimeOutWithinGeofence = true,
+                LunchBreakMinutes = trainee.OjtSetting?.DefaultLunchMinutes ?? 60,
+                NetRenderedHours = req.NetHours,
+                IsVerified = true,
+                VerifiedAt = DateTimeOffset.UtcNow,
+                VerifiedBySupervisorId = supervisorId.Value,
+                SupervisorRemark = $"[Manual Entry by {supervisor?.FullName ?? "Coordinator"}] {req.Reason.Trim()}"
+            };
+
+            db.AttendanceRecords.Add(record);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Manual attendance entry recorded successfully.", recordId = record.Id });
+        })
+        .RequireAuthorization(policy => policy.RequireRole("Supervisor"))
+        .WithName("ManualAttendanceEntry")
+        .WithTags("Supervisor");
+
+        group.MapPut("/attendance/{recordId:guid}", async (Guid recordId, UpdateAttendanceRecordRequest req, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var supervisorId = GetUserId(principal);
+            if (supervisorId == null) return Results.Unauthorized();
+
+            var record = await db.AttendanceRecords
+                .Include(a => a.User)
+                .FirstOrDefaultAsync(a => a.Id == recordId);
+
+            if (record == null) return Results.NotFound(new { message = "Attendance record not found." });
+
+            if (record.User?.SupervisorId != supervisorId.Value)
+            {
+                return Results.Forbid();
+            }
+
+            if (req.TimeIn.HasValue) record.TimeIn = req.TimeIn.Value;
+            if (req.TimeOut.HasValue) record.TimeOut = req.TimeOut.Value;
+            if (req.NetRenderedHours.HasValue) record.NetRenderedHours = req.NetRenderedHours.Value;
+            if (req.IsVerified.HasValue)
+            {
+                record.IsVerified = req.IsVerified.Value;
+                if (req.IsVerified.Value)
+                {
+                    record.VerifiedAt = DateTimeOffset.UtcNow;
+                    record.VerifiedBySupervisorId = supervisorId.Value;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(req.SupervisorRemark))
+            {
+                record.SupervisorRemark = req.SupervisorRemark.Trim();
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Attendance record updated successfully.", recordId = record.Id });
+        })
+        .RequireAuthorization(policy => policy.RequireRole("Supervisor"))
+        .WithName("UpdateAttendanceRecord")
+        .WithTags("Supervisor");
+
+        group.MapDelete("/attendance/{recordId:guid}", async (Guid recordId, ClaimsPrincipal principal, OJTHubDbContext db) =>
+        {
+            var supervisorId = GetUserId(principal);
+            if (supervisorId == null) return Results.Unauthorized();
+
+            var record = await db.AttendanceRecords
+                .Include(a => a.User)
+                .Include(a => a.PerimeterLogs)
+                .FirstOrDefaultAsync(a => a.Id == recordId);
+
+            if (record == null) return Results.NotFound(new { message = "Attendance record not found." });
+
+            if (record.User?.SupervisorId != supervisorId.Value)
+            {
+                return Results.Forbid();
+            }
+
+            db.AttendanceRecords.Remove(record);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Attendance record removed successfully." });
+        })
+        .RequireAuthorization(policy => policy.RequireRole("Supervisor"))
+        .WithName("DeleteAttendanceRecord")
         .WithTags("Supervisor");
 
         return group;

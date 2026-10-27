@@ -19,28 +19,39 @@ public static class SettingsEndpoints
                 .Include(u => u.Supervisor)
                 .FirstOrDefaultAsync(u => u.Id == userId.Value);
 
-            // If trainee is linked to a supervisor, always dynamically use the supervisor's active workplace rules
+            // If trainee is linked to a supervisor, use trainee's specific workplace establishment & supervisor's governance policies
             if (user != null && user.Role == "Trainee" && user.SupervisorId != null)
             {
+                var traineeSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
                 var supervisorSetting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == user.SupervisorId.Value);
-                if (supervisorSetting != null)
-                {
-                    return Results.Ok(new OjtSettingDto(
-                        supervisorSetting.Id,
-                        supervisorSetting.CompanyName,
-                        supervisorSetting.WorkplaceLatitude,
-                        supervisorSetting.WorkplaceLongitude,
-                        supervisorSetting.GeofenceRadiusMeters,
-                        supervisorSetting.GpsAccuracyThreshold,
-                        supervisorSetting.TargetTotalHours,
-                        supervisorSetting.DailyScheduleHours,
-                        supervisorSetting.DefaultLunchMinutes,
-                        true,
-                        user.Supervisor?.FullName,
-                        user.SupervisorId,
-                        supervisorSetting.MaxDailyHours
-                    ));
-                }
+
+                var companyName = traineeSetting?.CompanyName ?? supervisorSetting?.CompanyName ?? "Partner Host Establishment";
+                var lat = traineeSetting?.WorkplaceLatitude ?? supervisorSetting?.WorkplaceLatitude ?? 14.583916m;
+                var lng = traineeSetting?.WorkplaceLongitude ?? supervisorSetting?.WorkplaceLongitude ?? 121.063291m;
+                var radius = traineeSetting?.GeofenceRadiusMeters ?? supervisorSetting?.GeofenceRadiusMeters ?? 100;
+                var accuracy = supervisorSetting?.GpsAccuracyThreshold ?? traineeSetting?.GpsAccuracyThreshold ?? 250;
+                var target = supervisorSetting?.TargetTotalHours ?? traineeSetting?.TargetTotalHours ?? 486.0m;
+                var dailyHours = supervisorSetting?.DailyScheduleHours ?? traineeSetting?.DailyScheduleHours ?? 8.0m;
+                var maxDaily = supervisorSetting?.MaxDailyHours ?? traineeSetting?.MaxDailyHours ?? 10.0m;
+                var lunch = supervisorSetting?.DefaultLunchMinutes ?? traineeSetting?.DefaultLunchMinutes ?? 60;
+                var allowWeekend = supervisorSetting?.AllowWeekendPunches ?? traineeSetting?.AllowWeekendPunches ?? false;
+
+                return Results.Ok(new OjtSettingDto(
+                    traineeSetting?.Id ?? supervisorSetting?.Id ?? Guid.NewGuid(),
+                    companyName,
+                    lat,
+                    lng,
+                    radius,
+                    accuracy,
+                    target,
+                    dailyHours,
+                    lunch,
+                    true,
+                    user.Supervisor?.FullName,
+                    user.SupervisorId,
+                    maxDaily,
+                    allowWeekend
+                ));
             }
 
             var setting = await db.OjtSettings.FirstOrDefaultAsync(s => s.UserId == userId.Value);
@@ -68,7 +79,8 @@ public static class SettingsEndpoints
                 isLocked,
                 supervisorName,
                 user?.SupervisorId,
-                setting.MaxDailyHours
+                setting.MaxDailyHours,
+                setting.AllowWeekendPunches
             ));
         })
         .RequireAuthorization()
@@ -108,10 +120,12 @@ public static class SettingsEndpoints
             setting.TargetTotalHours = req.TargetTotalHours > 0 ? req.TargetTotalHours : 486.0m;
             setting.DailyScheduleHours = req.DailyScheduleHours > 0 ? req.DailyScheduleHours : 8.0m;
             setting.MaxDailyHours = req.MaxDailyHours > 0 ? req.MaxDailyHours : 10.0m;
+            setting.AllowWeekendPunches = req.AllowWeekendPunches;
             setting.DefaultLunchMinutes = req.DefaultLunchMinutes >= 0 ? req.DefaultLunchMinutes : 60;
             setting.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // When a Supervisor updates institutional OJT settings, automatically broadcast to all linked trainees!
+            // When a Supervisor updates institutional OJT settings, broadcast class policy rules to all linked trainees.
+            // Only overwrite workplace coordinates if explicitly requested (preserving individual trainee internship locations).
             if (user != null && user.Role == "Supervisor")
             {
                 var trainees = await db.Users
@@ -127,14 +141,19 @@ public static class SettingsEndpoints
                         db.OjtSettings.Add(trainee.OjtSetting);
                     }
 
-                    trainee.OjtSetting.CompanyName = setting.CompanyName;
-                    trainee.OjtSetting.WorkplaceLatitude = setting.WorkplaceLatitude;
-                    trainee.OjtSetting.WorkplaceLongitude = setting.WorkplaceLongitude;
-                    trainee.OjtSetting.GeofenceRadiusMeters = setting.GeofenceRadiusMeters;
+                    if (req.OverwriteWorkplaceLocation)
+                    {
+                        trainee.OjtSetting.CompanyName = setting.CompanyName;
+                        trainee.OjtSetting.WorkplaceLatitude = setting.WorkplaceLatitude;
+                        trainee.OjtSetting.WorkplaceLongitude = setting.WorkplaceLongitude;
+                        trainee.OjtSetting.GeofenceRadiusMeters = setting.GeofenceRadiusMeters;
+                    }
+
                     trainee.OjtSetting.GpsAccuracyThreshold = setting.GpsAccuracyThreshold;
                     trainee.OjtSetting.TargetTotalHours = setting.TargetTotalHours;
                     trainee.OjtSetting.DailyScheduleHours = setting.DailyScheduleHours;
                     trainee.OjtSetting.MaxDailyHours = setting.MaxDailyHours;
+                    trainee.OjtSetting.AllowWeekendPunches = setting.AllowWeekendPunches;
                     trainee.OjtSetting.DefaultLunchMinutes = setting.DefaultLunchMinutes;
                     trainee.OjtSetting.UpdatedAt = DateTimeOffset.UtcNow;
                 }
@@ -155,7 +174,8 @@ public static class SettingsEndpoints
                 false,
                 null,
                 null,
-                setting.MaxDailyHours
+                setting.MaxDailyHours,
+                setting.AllowWeekendPunches
             ));
         })
         .RequireAuthorization()

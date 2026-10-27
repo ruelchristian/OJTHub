@@ -45,6 +45,7 @@ export const SettingsView: React.FC = () => {
   const [maxDailyHours, setMaxDailyHours] = useState<string>('10.0');
 
   const [lunchMins, setLunchMins] = useState<number>(60);
+  const [allowWeekendPunches, setAllowWeekendPunches] = useState<boolean>(false);
 
 
 
@@ -87,6 +88,7 @@ export const SettingsView: React.FC = () => {
       setMaxDailyHours((s.maxDailyHours || 10.0).toString());
 
       setLunchMins(s.defaultLunchMinutes);
+      setAllowWeekendPunches(Boolean(s.allowWeekendPunches));
 
       setIsLocked(Boolean(s.isLocked || (user && user.role === 'Trainee' && user.supervisorId)));
 
@@ -248,7 +250,9 @@ export const SettingsView: React.FC = () => {
 
         maxDailyHours: parseFloat(maxDailyHours) || 10.0,
 
-        defaultLunchMinutes: lunchMins
+        defaultLunchMinutes: lunchMins,
+
+        allowWeekendPunches
 
       });
 
@@ -842,6 +846,24 @@ export const SettingsView: React.FC = () => {
 
               <span className="text-[10px] text-slate-400 mt-0.5">Deducted for shifts &gt; 4 hours</span>
 
+            </div>
+
+            <div className="sm:col-span-3 pt-3 border-t border-slate-800">
+              <label className={`flex items-start gap-2.5 ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                <input
+                  type="checkbox"
+                  checked={allowWeekendPunches}
+                  disabled={isLocked}
+                  onChange={(e) => setAllowWeekendPunches(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-200 block">Allow Weekend Duty Punches (Saturdays & Sundays)</span>
+                  <span className="text-slate-400">
+                    When enabled, time in/out punches on weekends are permitted for official company duties. When disabled, weekend punches require authorized notes.
+                  </span>
+                </div>
+              </label>
             </div>
 
           </div>

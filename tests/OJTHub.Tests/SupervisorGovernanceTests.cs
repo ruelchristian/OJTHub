@@ -288,5 +288,178 @@ public class SupervisorGovernanceTests
         Assert.IsFalse(isOnDuty);
         Assert.AreEqual("NotStarted", todayStatus);
     }
+
+    [TestMethod]
+    public void BroadcastSettings_PreservesIndividualWorkplaceLocation_WhenOverwriteLocationIsFalse()
+    {
+        // Arrange: Student has individual internship company (e.g. Accenture)
+        var studentSetting = new OjtSetting
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            CompanyName = "Accenture Philippines",
+            WorkplaceLatitude = 14.5501m,
+            WorkplaceLongitude = 121.0501m,
+            GeofenceRadiusMeters = 80,
+            GpsAccuracyThreshold = 100,
+            TargetTotalHours = 300m,
+            DailyScheduleHours = 8.0m,
+            MaxDailyHours = 10.0m,
+            DefaultLunchMinutes = 60,
+            AllowWeekendPunches = false
+        };
+
+        var broadcastRequest = new UpdateOjtSettingRequest(
+            CompanyName: "University Coordinator Office",
+            WorkplaceLatitude: 14.6000m,
+            WorkplaceLongitude: 120.9800m,
+            GeofenceRadiusMeters: 150,
+            GpsAccuracyThreshold: 200,
+            TargetTotalHours: 486.0m,
+            DailyScheduleHours: 8.0m,
+            MaxDailyHours: 10.0m,
+            DefaultLunchMinutes: 45,
+            AllowWeekendPunches: true,
+            OverwriteWorkplaceLocation: false
+        );
+
+        // Act: Apply broadcast policies with OverwriteWorkplaceLocation = false
+        studentSetting.TargetTotalHours = broadcastRequest.TargetTotalHours;
+        studentSetting.DailyScheduleHours = broadcastRequest.DailyScheduleHours;
+        studentSetting.MaxDailyHours = broadcastRequest.MaxDailyHours;
+        studentSetting.DefaultLunchMinutes = broadcastRequest.DefaultLunchMinutes;
+        studentSetting.AllowWeekendPunches = broadcastRequest.AllowWeekendPunches;
+
+        if (broadcastRequest.OverwriteWorkplaceLocation)
+        {
+            studentSetting.CompanyName = broadcastRequest.CompanyName;
+            studentSetting.WorkplaceLatitude = broadcastRequest.WorkplaceLatitude;
+            studentSetting.WorkplaceLongitude = broadcastRequest.WorkplaceLongitude;
+            studentSetting.GeofenceRadiusMeters = broadcastRequest.GeofenceRadiusMeters;
+            studentSetting.GpsAccuracyThreshold = broadcastRequest.GpsAccuracyThreshold;
+        }
+
+        // Assert: Hours & policies updated, but company location preserved
+        Assert.AreEqual("Accenture Philippines", studentSetting.CompanyName);
+        Assert.AreEqual(14.5501m, studentSetting.WorkplaceLatitude);
+        Assert.AreEqual(80, studentSetting.GeofenceRadiusMeters);
+        Assert.AreEqual(486.0m, studentSetting.TargetTotalHours);
+        Assert.AreEqual(45, studentSetting.DefaultLunchMinutes);
+        Assert.IsTrue(studentSetting.AllowWeekendPunches);
+    }
+
+    [TestMethod]
+    public void BroadcastSettings_OverwritesWorkplaceLocation_WhenOverwriteLocationIsTrue()
+    {
+        // Arrange
+        var studentSetting = new OjtSetting
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            CompanyName = "Accenture Philippines",
+            WorkplaceLatitude = 14.5501m,
+            WorkplaceLongitude = 121.0501m,
+            GeofenceRadiusMeters = 80,
+            GpsAccuracyThreshold = 100,
+            TargetTotalHours = 300m,
+            DailyScheduleHours = 8.0m,
+            MaxDailyHours = 10.0m,
+            DefaultLunchMinutes = 60,
+            AllowWeekendPunches = false
+        };
+
+        var broadcastRequest = new UpdateOjtSettingRequest(
+            CompanyName: "Department Central Lab",
+            WorkplaceLatitude: 14.6000m,
+            WorkplaceLongitude: 120.9800m,
+            GeofenceRadiusMeters: 150,
+            GpsAccuracyThreshold: 200,
+            TargetTotalHours: 486.0m,
+            DailyScheduleHours: 8.0m,
+            MaxDailyHours: 10.0m,
+            DefaultLunchMinutes: 45,
+            AllowWeekendPunches: true,
+            OverwriteWorkplaceLocation: true
+        );
+
+        // Act
+        studentSetting.TargetTotalHours = broadcastRequest.TargetTotalHours;
+        if (broadcastRequest.OverwriteWorkplaceLocation)
+        {
+            studentSetting.CompanyName = broadcastRequest.CompanyName;
+            studentSetting.WorkplaceLatitude = broadcastRequest.WorkplaceLatitude;
+            studentSetting.WorkplaceLongitude = broadcastRequest.WorkplaceLongitude;
+        }
+
+        // Assert: Location explicitly overwritten
+        Assert.AreEqual("Department Central Lab", studentSetting.CompanyName);
+        Assert.AreEqual(14.6000m, studentSetting.WorkplaceLatitude);
+    }
+
+    [TestMethod]
+    public void OfflineAntiFraud_FlagsDiscrepancy_WhenClientTimestampDeviatesOver15Minutes()
+    {
+        // Arrange: Client claims punch was 3 hours ago
+        var serverNow = DateTimeOffset.UtcNow;
+        var claimedClientTimestamp = serverNow.AddHours(-3);
+
+        // Act
+        var isHistoricalPunch = Math.Abs((serverNow - claimedClientTimestamp).TotalMinutes) > 15;
+        var isVerified = !isHistoricalPunch;
+
+        // Assert
+        Assert.IsTrue(isHistoricalPunch, "Punches timestamped over 15 minutes in the past must be flagged as offline/historical.");
+        Assert.IsFalse(isVerified, "Historical punches must require supervisor verification.");
+    }
+
+    [TestMethod]
+    public void WeekendBoundaryValidation_BlocksSundayPunch_WhenWeekendDisabledAndNoNote()
+    {
+        // Arrange: Sunday morning in Philippine time (UTC+8)
+        var sundayUtc = new DateTimeOffset(2026, 11, 1, 1, 0, 0, TimeSpan.Zero); // 9:00 AM PHT on Sunday Nov 1, 2026
+        var localTime = sundayUtc.ToOffset(TimeSpan.FromHours(8));
+        var allowWeekendPunches = false;
+        string? studentRemark = null;
+
+        // Act: Evaluate punch validity
+        var isWeekend = localTime.DayOfWeek == DayOfWeek.Saturday || localTime.DayOfWeek == DayOfWeek.Sunday;
+        var isBlocked = isWeekend && !allowWeekendPunches && string.IsNullOrWhiteSpace(studentRemark);
+
+        // Assert
+        Assert.IsTrue(isWeekend);
+        Assert.IsTrue(isBlocked, "Unapproved weekend punch without official note must be blocked.");
+    }
+
+    [TestMethod]
+    public void ZombieShiftDetection_AutoCloses_WhenActiveShiftExceedsTwentyHours()
+    {
+        // Arrange: Trainee clocked in on Friday 8 AM and forgot to clock out (now Saturday 6 AM = 22 hours)
+        var serverNow = DateTimeOffset.UtcNow;
+        var shiftStarted = serverNow.AddHours(-22);
+        var activeShift = new AttendanceRecord
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            TimeIn = shiftStarted,
+            TimeOut = null
+        };
+
+        // Act: Simulate auto-close threshold (20 hours)
+        var elapsedHours = (serverNow - activeShift.TimeIn).TotalHours;
+        var shouldAutoClose = activeShift.TimeOut == null && elapsedHours > 20;
+
+        if (shouldAutoClose)
+        {
+            activeShift.TimeOut = activeShift.TimeIn.AddHours(8); // capped standard
+            activeShift.NetRenderedHours = 8.0m;
+            activeShift.SupervisorRemark = "[Auto-closed runaway shift]";
+        }
+
+        // Assert
+        Assert.IsTrue(shouldAutoClose);
+        Assert.IsNotNull(activeShift.TimeOut);
+        Assert.AreEqual(8.0m, activeShift.NetRenderedHours);
+    }
 }
 

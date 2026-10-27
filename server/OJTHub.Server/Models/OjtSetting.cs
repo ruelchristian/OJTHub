@@ -37,6 +37,8 @@ public class OjtSetting
     [Column(TypeName = "decimal(4,1)")]
     public decimal MaxDailyHours { get; set; } = 10.0m; // Default 10.0h (e.g. 8h regular + 2h max overtime cap)
 
+    public bool AllowWeekendPunches { get; set; } = false; // Weekend shifts disabled unless permitted by coordinator
+
     public int DefaultLunchMinutes { get; set; } = 60;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

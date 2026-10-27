@@ -13,7 +13,8 @@ public record OjtSettingDto(
     bool IsLocked = false,
     string? ManagedBySupervisorName = null,
     Guid? SupervisorId = null,
-    decimal MaxDailyHours = 10.0m
+    decimal MaxDailyHours = 10.0m,
+    bool AllowWeekendPunches = false
 );
 
 public record UpdateOjtSettingRequest(
@@ -25,5 +26,7 @@ public record UpdateOjtSettingRequest(
     decimal TargetTotalHours,
     decimal DailyScheduleHours,
     int DefaultLunchMinutes,
-    decimal MaxDailyHours = 10.0m
+    decimal MaxDailyHours = 10.0m,
+    bool AllowWeekendPunches = false,
+    bool OverwriteWorkplaceLocation = false
 );

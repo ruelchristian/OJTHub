@@ -81,3 +81,19 @@ public record HoursSummaryDto(
     decimal CompletionPercentage,
     int TotalDaysRendered
 );
+
+public record ManualAttendanceEntryRequest(
+    DateOnly Date,
+    DateTimeOffset TimeIn,
+    DateTimeOffset TimeOut,
+    decimal NetHours,
+    string Reason
+);
+
+public record UpdateAttendanceRecordRequest(
+    DateTimeOffset? TimeIn,
+    DateTimeOffset? TimeOut,
+    decimal? NetRenderedHours,
+    string? SupervisorRemark,
+    bool? IsVerified
+);

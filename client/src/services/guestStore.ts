@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: OjtSetting = {
   targetTotalHours: 486.0,
   dailyScheduleHours: 8.0,
   maxDailyHours: 10.0,
+  allowWeekendPunches: false,
   defaultLunchMinutes: 60
 };
 

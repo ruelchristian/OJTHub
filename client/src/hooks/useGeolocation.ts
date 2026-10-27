@@ -191,9 +191,16 @@ export function useGeolocation(options?: GeolocationOptions) {
   useEffect(() => {
     getLocation();
 
-    if (watch && typeof navigator !== 'undefined' && navigator.geolocation) {
+    if (!watch || typeof navigator === 'undefined' || !navigator.geolocation) {
+      return;
+    }
+
+    let watchId: number | null = null;
+
+    const startWatching = () => {
+      if (watchId !== null) return;
       const watchHighAcc = enableHighAccuracy && !fallbackActiveRef.current;
-      const watchId = navigator.geolocation.watchPosition(
+      watchId = navigator.geolocation.watchPosition(
         (pos) => handleSuccess(pos, watchHighAcc),
         (err) => {
           // In watch mode, transient timeouts when stationary are expected and shouldn't destroy the active fix
@@ -211,11 +218,43 @@ export function useGeolocation(options?: GeolocationOptions) {
           maximumAge: 15000
         }
       );
+    };
 
-      return () => {
+    const stopWatching = () => {
+      if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
-      };
+        watchId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined') {
+        if (document.hidden) {
+          // Mobile battery optimization: Pause hardware GPS watch when app is in background or screen is off
+          stopWatching();
+        } else {
+          // Resume watch and request single immediate fix when student returns to tab
+          startWatching();
+          getLocation();
+        }
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      if (!document.hidden) {
+        startWatching();
+      }
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    } else {
+      startWatching();
     }
+
+    return () => {
+      stopWatching();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
   }, [watch, enableHighAccuracy, getLocation, handleSuccess, handleError]);
 
   return { ...state, refreshLocation: getLocation, requestPermission };

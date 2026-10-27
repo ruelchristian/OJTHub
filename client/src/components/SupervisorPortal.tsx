@@ -24,7 +24,11 @@ import {
   UserX,
   FileSpreadsheet,
   AlertTriangle,
-  WifiOff
+  WifiOff,
+  Plus,
+  Trash2,
+  Edit3,
+  Save
 } from 'lucide-react';
 import { downloadDtrCsv } from '../utils/dtrExport';
 
@@ -59,6 +63,25 @@ export const SupervisorPortal: React.FC = () => {
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
   const [supervisorDefaultSetting, setSupervisorDefaultSetting] = useState<any>(null);
   const [showAdvancedCoords, setShowAdvancedCoords] = useState<boolean>(false);
+  const [cfgAllowWeekendPunches, setCfgAllowWeekendPunches] = useState<boolean>(false);
+  const [cfgOverwriteLocation, setCfgOverwriteLocation] = useState<boolean>(false);
+
+  // Manual Attendance Adjustment / Credit Modal
+  const [showManualModal, setShowManualModal] = useState<boolean>(false);
+  const [manualDate, setManualDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [manualTimeIn, setManualTimeIn] = useState<string>('08:00');
+  const [manualTimeOut, setManualTimeOut] = useState<string>('17:00');
+  const [manualHours, setManualHours] = useState<string>('8.0');
+  const [manualReason, setManualReason] = useState<string>('');
+  const [savingManual, setSavingManual] = useState<boolean>(false);
+
+  // Record Inline Editing State
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editTimeIn, setEditTimeIn] = useState<string>('');
+  const [editTimeOut, setEditTimeOut] = useState<string>('');
+  const [editNetHours, setEditNetHours] = useState<string>('');
+  const [editRemark, setEditRemark] = useState<string>('');
+  const [savingEdit, setSavingEdit] = useState<boolean>(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -101,6 +124,8 @@ export const SupervisorPortal: React.FC = () => {
     setCfgDailyHours((s?.dailyScheduleHours || 8.0).toString());
     setCfgMaxDailyHours((s?.maxDailyHours || 10.0).toString());
     setCfgLunchMins(s?.defaultLunchMinutes || 60);
+    setCfgAllowWeekendPunches(Boolean(s?.allowWeekendPunches));
+    setCfgOverwriteLocation(false);
     setCfgApplyToAll(false);
   };
 
@@ -118,7 +143,9 @@ export const SupervisorPortal: React.FC = () => {
         targetTotalHours: parseFloat(cfgTargetHours) || 486.0,
         dailyScheduleHours: parseFloat(cfgDailyHours) || 8.0,
         maxDailyHours: parseFloat(cfgMaxDailyHours) || 10.0,
-        defaultLunchMinutes: cfgLunchMins
+        defaultLunchMinutes: cfgLunchMins,
+        allowWeekendPunches: cfgAllowWeekendPunches,
+        overwriteWorkplaceLocation: cfgApplyToAll ? cfgOverwriteLocation : true
       };
 
       if (cfgApplyToAll) {
@@ -142,6 +169,82 @@ export const SupervisorPortal: React.FC = () => {
       alert(err.message || 'Failed to save settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleCreateManualEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTrainee) return;
+    setSavingManual(true);
+    try {
+      const res = await api.supervisor.manualEntry(selectedTrainee.traineeId, {
+        date: manualDate,
+        timeIn: `${manualDate}T${manualTimeIn}:00`,
+        timeOut: `${manualDate}T${manualTimeOut}:00`,
+        netHours: parseFloat(manualHours) || 0,
+        reason: manualReason.trim()
+      });
+      alert(res.message);
+      setShowManualModal(false);
+      setManualReason('');
+      const refreshed = await api.supervisor.getTraineeAttendance(selectedTrainee.traineeId);
+      setRecords(refreshed);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to record manual attendance entry');
+    } finally {
+      setSavingManual(false);
+    }
+  };
+
+  const handleStartEditRecord = (r: AttendanceRecord) => {
+    setEditingRecordId(r.id);
+    const inTime = r.timeIn ? new Date(r.timeIn).toTimeString().slice(0, 5) : '08:00';
+    const outTime = r.timeOut ? new Date(r.timeOut).toTimeString().slice(0, 5) : '17:00';
+    setEditTimeIn(inTime);
+    setEditTimeOut(outTime);
+    setEditNetHours((r.netRenderedHours || 0).toString());
+    setEditRemark(r.supervisorRemark || '');
+  };
+
+  const handleSaveEditRecord = async (r: AttendanceRecord) => {
+    setSavingEdit(true);
+    try {
+      const res = await api.supervisor.updateAttendance(r.id, {
+        timeIn: `${r.date}T${editTimeIn}:00`,
+        timeOut: editTimeOut ? `${r.date}T${editTimeOut}:00` : undefined,
+        netRenderedHours: parseFloat(editNetHours) || 0,
+        supervisorRemark: editRemark.trim(),
+        isVerified: true
+      });
+      alert(res.message);
+      setEditingRecordId(null);
+      if (selectedTrainee) {
+        const refreshed = await api.supervisor.getTraineeAttendance(selectedTrainee.traineeId);
+        setRecords(refreshed);
+      }
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update attendance record');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    if (!confirm('Are you sure you want to delete this attendance record? This will adjust the trainee\'s total rendered hours.')) {
+      return;
+    }
+    try {
+      const res = await api.supervisor.deleteAttendance(recordId);
+      alert(res.message);
+      if (selectedTrainee) {
+        const refreshed = await api.supervisor.getTraineeAttendance(selectedTrainee.traineeId);
+        setRecords(refreshed);
+      }
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete attendance record');
     }
   };
 
@@ -602,6 +705,16 @@ export const SupervisorPortal: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowManualModal(!showManualModal)}
+                  className="min-h-[38px] px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 active:scale-95 border border-indigo-500/40 text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Credit official hours manually for offsite seminars, forgotten phones, or power outages"
+                >
+                  <Plus className="w-4 h-4 text-indigo-400" />
+                  <span className="hidden sm:inline">Add Manual Hours</span>
+                  <span className="sm:hidden">+ Hours</span>
+                </button>
+
                 {records.some(r => !r.isVerified && r.timeOut && r.timeInWithinGeofence && (r.timeOutWithinGeofence ?? true)) && (
                   <button
                     onClick={() => handleBatchVerify(selectedTrainee.traineeId)}
@@ -627,13 +740,112 @@ export const SupervisorPortal: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setSelectedTrainee(null)}
+                  onClick={() => {
+                    setSelectedTrainee(null);
+                    setShowManualModal(false);
+                    setEditingRecordId(null);
+                  }}
                   className="min-h-[38px] min-w-[38px] p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
+
+            {/* Manual Attendance Adjustment Sub-form */}
+            {showManualModal && (
+              <form onSubmit={handleCreateManualEntry} className="p-4 bg-indigo-950/40 border-b border-indigo-500/30 space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-indigo-400" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">Manual Attendance Adjustment / Excuse Slip</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualModal(false)}
+                    className="text-slate-400 hover:text-white p-1 rounded-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={manualDate}
+                      onChange={(e) => setManualDate(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Time In</label>
+                    <input
+                      type="time"
+                      value={manualTimeIn}
+                      onChange={(e) => setManualTimeIn(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Time Out</label>
+                    <input
+                      type="time"
+                      value={manualTimeOut}
+                      onChange={(e) => setManualTimeOut(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Net Hours Credit</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.1"
+                      max="24"
+                      value={manualHours}
+                      onChange={(e) => setManualHours(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold text-emerald-400"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Reason / Official Authorization (Excuse Slip, Seminar, Power Outage, Battery Died)</label>
+                  <input
+                    type="text"
+                    value={manualReason}
+                    onChange={(e) => setManualReason(e.target.value)}
+                    placeholder="e.g. Attended Department Tech Summit / Company Power Outage"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualModal(false)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingManual}
+                    className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-xs text-white font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{savingManual ? 'Crediting...' : 'Credit Hours Now'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Modal Body: Attendance Shifts */}
             <div className="p-3 sm:p-5 overflow-y-auto space-y-3">
@@ -777,30 +989,116 @@ export const SupervisorPortal: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Verification Actions */}
-                      <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/60">
-                        {!r.isVerified ? (
-                          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full md:w-auto">
-                            <input
-                              type="text"
-                              placeholder="Optional remark..."
-                              value={remarkInput[r.id] || ''}
-                              onChange={(e) => setRemarkInput({ ...remarkInput, [r.id]: e.target.value })}
-                              className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 w-full xs:w-44"
-                            />
-                            <button
-                              onClick={() => handleVerify(r.id)}
-                              disabled={verifyingId === r.id || !r.timeOut}
-                              className="min-h-[38px] py-1.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>{verifyingId === r.id ? 'Verifying...' : 'Verify Shift'}</span>
-                            </button>
+                      {/* Verification & Record Management Actions */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/60">
+                        {editingRecordId === r.id ? (
+                          <div className="p-3 bg-slate-900 border border-indigo-500/50 rounded-xl space-y-2 w-full animate-fade-in">
+                            <div className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
+                              <span>Adjust Shift Record</span>
+                              <button onClick={() => setEditingRecordId(null)} className="text-slate-400 hover:text-white">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <label className="text-[9px] text-slate-400 block">In</label>
+                                <input
+                                  type="time"
+                                  value={editTimeIn}
+                                  onChange={(e) => setEditTimeIn(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-xs text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-slate-400 block">Out</label>
+                                <input
+                                  type="time"
+                                  value={editTimeOut}
+                                  onChange={(e) => setEditTimeOut(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-xs text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-slate-400 block">Net Hrs</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={editNetHours}
+                                  onChange={(e) => setEditNetHours(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-xs text-white font-bold text-emerald-400"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Supervisor remark/reason..."
+                                value={editRemark}
+                                onChange={(e) => setEditRemark(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditingRecordId(null)}
+                                className="px-2.5 py-1 rounded bg-slate-800 text-[11px] text-slate-300 font-semibold cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditRecord(r)}
+                                disabled={savingEdit}
+                                className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-[11px] text-white font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <Save className="w-3 h-3" />
+                                <span>{savingEdit ? 'Saving...' : 'Save Adjustment'}</span>
+                              </button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>Verified by Supervisor</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {!r.isVerified ? (
+                              <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  placeholder="Optional remark..."
+                                  value={remarkInput[r.id] || ''}
+                                  onChange={(e) => setRemarkInput({ ...remarkInput, [r.id]: e.target.value })}
+                                  className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 w-full xs:w-36"
+                                />
+                                <button
+                                  onClick={() => handleVerify(r.id)}
+                                  disabled={verifyingId === r.id || !r.timeOut}
+                                  className="min-h-[34px] py-1 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>{verifyingId === r.id ? '...' : 'Verify'}</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Verified</span>
+                              </div>
+                            )}
+
+                            {/* Supervisor Record Actions: Edit & Delete */}
+                            <button
+                              onClick={() => handleStartEditRecord(r)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                              title="Adjust shift times or net hours"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(r.id)}
+                              className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer"
+                              title="Delete invalid/erroneous attendance record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -919,6 +1217,19 @@ export const SupervisorPortal: React.FC = () => {
                     required
                   />
                 </div>
+                <div className="sm:col-span-2 lg:col-span-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cfgAllowWeekendPunches}
+                      onChange={(e) => setCfgAllowWeekendPunches(e.target.checked)}
+                      className="rounded border-slate-700 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-slate-300 font-semibold">
+                      Allow Weekend Duty Punches (Saturdays & Sundays)
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* Geofence Map */}
@@ -1036,7 +1347,7 @@ export const SupervisorPortal: React.FC = () => {
               </div>
 
               {/* Broadcast to All Trainees Checkbox */}
-              <div className="bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-3">
+              <div className="bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-3 space-y-2.5">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1047,10 +1358,29 @@ export const SupervisorPortal: React.FC = () => {
                   <div className="text-xs">
                     <span className="font-bold text-indigo-200 block">Apply to ALL my linked trainees</span>
                     <span className="text-slate-400">
-                      Standardize this company name, target hours, and workplace location across all {trainees.length} assigned trainees simultaneously.
+                      Standardize schedule policies (target hours, daily hours cap, lunch break, weekend rules) across all {trainees.length} assigned trainees simultaneously.
                     </span>
                   </div>
                 </label>
+
+                {cfgApplyToAll && (
+                  <div className="pt-2 pl-6 border-t border-indigo-500/20">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cfgOverwriteLocation}
+                        onChange={(e) => setCfgOverwriteLocation(e.target.checked)}
+                        className="mt-0.5 rounded border-slate-700 text-indigo-400 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-amber-300 block">Also overwrite company name & geofence pin for all trainees</span>
+                        <span className="text-slate-400 text-[11px]">
+                          Unchecked (recommended): Leaves each trainee's unique company coordinates (e.g. Accenture, OCC, Globe) intact, updating only hours policies. Checked: Changes everyone's workplace to "{cfgCompany}".
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer / Actions */}

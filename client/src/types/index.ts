@@ -28,10 +28,19 @@ export interface OjtSetting {
   targetTotalHours: number;
   dailyScheduleHours: number;
   maxDailyHours: number;
+  allowWeekendPunches?: boolean;
   defaultLunchMinutes: number;
   isLocked?: boolean;
   managedBySupervisorName?: string;
   supervisorId?: string;
+}
+
+export interface ManualAttendanceRequest {
+  date: string;
+  timeIn: string;
+  timeOut: string;
+  netHours: number;
+  reason: string;
 }
 
 export interface AttendanceRecord {

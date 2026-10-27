@@ -140,7 +140,7 @@ export const AttendanceHistory: React.FC = () => {
 
       const tableRows = records.map((r) => {
 
-        const dateObj = new Date(r.date);
+        const dateObj = new Date(r.date + 'T12:00:00');
 
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
 
@@ -230,7 +230,7 @@ export const AttendanceHistory: React.FC = () => {
 
         styles: {
 
-          cellPadding: 2,
+          cellPadding: 1.2,
 
           lineColor: [203, 213, 225],
 

@@ -24,7 +24,22 @@ public static class AttendanceEndpoints
 
             if (activeRecord != null)
             {
-                return Results.BadRequest(new { message = "You already have an active shift in progress. Please Time-Out before starting a new shift." });
+                var nowUtc = DateTimeOffset.UtcNow;
+                if ((nowUtc - activeRecord.TimeIn).TotalHours >= 20.0)
+                {
+                    // Auto-close stale runaway zombie shift from past days
+                    var maxCap = setting.MaxDailyHours > 0 ? setting.MaxDailyHours : 10.0m;
+                    activeRecord.TimeOut = activeRecord.TimeIn.AddHours((double)maxCap);
+                    activeRecord.NetRenderedHours = maxCap;
+                    activeRecord.SupervisorRemark = string.IsNullOrWhiteSpace(activeRecord.SupervisorRemark)
+                        ? $"[Auto-Closed] Exceeded 20h limit; capped at {maxCap:F1}h. Trainee forgot to punch out."
+                        : $"{activeRecord.SupervisorRemark} | [Auto-Closed] Capped at {maxCap:F1}h.";
+                    await db.SaveChangesAsync();
+                }
+                else
+                {
+                    return Results.BadRequest(new { message = "You already have an active shift in progress. Please Time-Out before starting a new shift." });
+                }
             }
 
             var punchTime = DateTimeOffset.UtcNow;
@@ -35,10 +50,18 @@ public static class AttendanceEndpoints
                 punchTime = req.ClientTimestamp.Value;
             }
 
+            // 2. Weekend shift check (Philippines UTC+8)
+            var localPunch = punchTime.ToOffset(TimeSpan.FromHours(8));
+            var isWeekend = localPunch.DayOfWeek == DayOfWeek.Saturday || localPunch.DayOfWeek == DayOfWeek.Sunday;
+            if (isWeekend && !setting.AllowWeekendPunches && string.IsNullOrWhiteSpace(req.StudentRemark))
+            {
+                return Results.BadRequest(new { message = "Weekend attendance punches are disabled by your coordinator. If authorized to work weekends, please provide an explanation note." });
+            }
+
             var punchDate = DateOnly.FromDateTime(punchTime.UtcDateTime);
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            // 2. Prevent infinite punches: check if user already completed a shift today
+            // 3. Prevent infinite punches: check if user already completed a shift today
             var completedToday = await db.AttendanceRecords
                 .FirstOrDefaultAsync(a => a.UserId == userId.Value && (a.Date == punchDate || a.Date == today) && a.TimeOut != null);
 
@@ -74,6 +97,18 @@ public static class AttendanceEndpoints
             else if (req.Accuracy > setting.GpsAccuracyThreshold)
             {
                 accuracyRemark = $"Logged with low GPS precision (±{req.Accuracy:F0}m > {setting.GpsAccuracyThreshold}m limit); recorded for supervisor review.";
+            }
+
+            // Anti-fraud: flag historical offline punches for coordinator verification
+            var isHistoricalOffline = req.ClientTimestamp.HasValue && 
+                Math.Abs((DateTimeOffset.UtcNow - req.ClientTimestamp.Value).TotalMinutes) > 15;
+
+            if (isHistoricalOffline)
+            {
+                var offlineTag = $"[Historical/Offline Punch: {req.ClientTimestamp:yyyy-MM-dd HH:mm} UTC]";
+                accuracyRemark = string.IsNullOrEmpty(accuracyRemark)
+                    ? offlineTag
+                    : $"{accuracyRemark} | {offlineTag}";
             }
 
             var record = new AttendanceRecord
@@ -253,6 +288,23 @@ public static class AttendanceEndpoints
             if (userId == null) return Results.Unauthorized();
 
             var now = DateTimeOffset.UtcNow;
+            var setting = await GetEffectiveSettingAsync(db, userId.Value);
+
+            // Auto-close stale runaway zombie shift exceeding 20h
+            var activeShift = await db.AttendanceRecords
+                .FirstOrDefaultAsync(a => a.UserId == userId.Value && a.TimeOut == null);
+
+            if (activeShift != null && (now - activeShift.TimeIn).TotalHours >= 20.0)
+            {
+                var maxCap = setting.MaxDailyHours > 0 ? setting.MaxDailyHours : 10.0m;
+                activeShift.TimeOut = activeShift.TimeIn.AddHours((double)maxCap);
+                activeShift.NetRenderedHours = maxCap;
+                activeShift.SupervisorRemark = string.IsNullOrWhiteSpace(activeShift.SupervisorRemark)
+                    ? $"[Auto-Closed] Exceeded 20h threshold; capped at {maxCap:F1}h limit."
+                    : $"{activeShift.SupervisorRemark} | [Auto-Closed] Capped at {maxCap:F1}h.";
+                await db.SaveChangesAsync();
+            }
+
             var today = DateOnly.FromDateTime(now.UtcDateTime);
             var records = await db.AttendanceRecords
                 .Include(a => a.User)
@@ -266,7 +318,6 @@ public static class AttendanceEndpoints
                 .OrderByDescending(a => a.TimeIn)
                 .FirstOrDefault();
 
-            var setting = await GetEffectiveSettingAsync(db, userId.Value);
             var user = await db.Users.FindAsync(userId.Value);
             var supervisor = user?.SupervisorId != null ? await db.Users.FindAsync(user.SupervisorId.Value) : null;
 
@@ -284,7 +335,8 @@ public static class AttendanceEndpoints
                     isLocked,
                     supervisor?.FullName,
                     user?.SupervisorId,
-                    setting.MaxDailyHours
+                    setting.MaxDailyHours,
+                    setting.AllowWeekendPunches
                 ) : null
             ));
         })

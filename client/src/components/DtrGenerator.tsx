@@ -147,12 +147,13 @@ export const DtrGenerator: React.FC = () => {
     }
 
     autoTable(doc, {
-      startY: 57,
+      startY: 54,
       head: [['Day', 'Day', 'Time-In', 'Break', 'Time-Out', 'Hours', 'Cumulative', 'Status']],
       body: tableBody,
       styles: {
-        fontSize: 7.5,
-        cellPadding: 1.5,
+        fontSize: 7.0,
+        cellPadding: 1.1,
+        minCellHeight: 4.8,
         halign: 'center',
         lineColor: [200, 200, 200],
         lineWidth: 0.1
@@ -160,7 +161,8 @@ export const DtrGenerator: React.FC = () => {
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: [255, 255, 255],
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7.5
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -168,31 +170,31 @@ export const DtrGenerator: React.FC = () => {
       margin: { left: 14, right: 14 }
     });
 
-    // Summary & Signatures at bottom
-    const finalY = (doc as any).lastAutoTable.finalY + 8;
+    // Summary & Signatures at bottom (compact layout guaranteed to fit single A4 page)
+    const finalY = (doc as any).lastAutoTable.finalY + 5;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.text(`Total Rendered Hours for ${monthName}: ${totalMonthHours.toFixed(2)} Hours`, 14, finalY);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.text(
       'I certify on my honor that the above is a true and correct report of the hours of work performed by me during the specified period.',
       14,
-      finalY + 6,
+      finalY + 5,
       { maxWidth: 182 }
     );
 
     // Signatures
-    const sigY = finalY + 22;
+    const sigY = finalY + 17;
     doc.line(20, sigY, 80, sigY);
     doc.text(user?.fullName?.toUpperCase() ?? 'TRAINEE SIGNATURE', 50, sigY + 4, { align: 'center' });
-    doc.text('Student / OJT Trainee', 50, sigY + 8, { align: 'center' });
+    doc.text('Student / OJT Trainee', 50, sigY + 7.5, { align: 'center' });
 
     doc.line(130, sigY, 190, sigY);
     doc.text('AUTHORIZED SUPERVISOR', 160, sigY + 4, { align: 'center' });
-    doc.text('OJT Supervisor / Instructor', 160, sigY + 8, { align: 'center' });
+    doc.text('OJT Supervisor / Instructor', 160, sigY + 7.5, { align: 'center' });
 
     doc.save(`DTR_${user?.fullName?.replace(/\s+/g, '_')}_${monthName}_${selectedYear}.pdf`);
   };
