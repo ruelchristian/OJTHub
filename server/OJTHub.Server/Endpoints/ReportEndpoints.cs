@@ -81,9 +81,10 @@ public static class ReportEndpoints
                 query = query.Where(r => r.ReportType == reportType);
             }
 
-            var items = await query
+            var rawItems = await query.ToListAsync();
+            var items = rawItems
                 .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
+                .ToList();
 
             var dtos = items.Select(r => new GeneratedReportDto(
                 r.Id, r.UserId, r.ReportType, r.StartDate, r.EndDate,

@@ -250,10 +250,13 @@ public static class AttendanceEndpoints
             var today = DateOnly.FromDateTime(now.UtcDateTime);
 
             // Find the most recently completed shift for today (or within last 30 minutes)
-            var record = await db.AttendanceRecords
+            var rawCompleted = await db.AttendanceRecords
                 .Where(a => a.UserId == userId.Value && a.TimeOut != null && (a.Date == today || a.TimeOut >= now.AddMinutes(-30)))
+                .ToListAsync();
+
+            var record = rawCompleted
                 .OrderByDescending(a => a.TimeOut)
-                .FirstOrDefaultAsync();
+                .FirstOrDefault();
 
             if (record == null)
             {
@@ -306,13 +309,19 @@ public static class AttendanceEndpoints
             }
 
             var today = DateOnly.FromDateTime(now.UtcDateTime);
-            var records = await db.AttendanceRecords
+            var cutoff = now.AddHours(-18);
+            var rawRecords = await db.AttendanceRecords
                 .Include(a => a.User)
                 .Include(a => a.PerimeterLogs)
-                .Where(a => a.UserId == userId.Value && (a.Date == today || a.TimeOut == null || a.TimeOut >= now.AddHours(-18)))
+                .Where(a => a.UserId == userId.Value)
+                .OrderByDescending(a => a.Date)
+                .ToListAsync();
+
+            var records = rawRecords
+                .Where(a => a.Date == today || a.TimeOut == null || a.TimeOut >= cutoff)
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.TimeIn)
-                .ToListAsync();
+                .ToList();
 
             var record = records
                 .OrderByDescending(a => a.TimeIn)

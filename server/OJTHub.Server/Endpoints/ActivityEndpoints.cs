@@ -21,10 +21,14 @@ public static class ActivityEndpoints
             if (startDate.HasValue) query = query.Where(a => a.Date >= startDate.Value);
             if (endDate.HasValue) query = query.Where(a => a.Date <= endDate.Value);
 
-            var items = await query
+            var rawItems = await query
+                .OrderByDescending(a => a.Date)
+                .ToListAsync();
+
+            var items = rawItems
                 .OrderByDescending(a => a.Date)
                 .ThenByDescending(a => a.CreatedAt)
-                .ToListAsync();
+                .ToList();
 
             var dtos = items.Select(a => new ActivityLogDto(
                 a.Id, a.UserId, a.Date, a.TaskTitle, a.Details, a.HoursSpent, a.Category, a.CreatedAt
@@ -136,11 +140,15 @@ public static class ActivityEndpoints
             if (user == null) return Results.NotFound(new { message = "User not found" });
 
             // Fetch student's activities in ascending order to map by cumulative hours
-            var activities = await db.ActivityLogs
+            var rawActivities = await db.ActivityLogs
                 .Where(a => a.UserId == targetUserId)
                 .OrderBy(a => a.Date)
-                .ThenBy(a => a.CreatedAt)
                 .ToListAsync(ct);
+
+            var activities = rawActivities
+                .OrderBy(a => a.Date)
+                .ThenBy(a => a.CreatedAt)
+                .ToList();
 
             // Collect activities up to the milestone hours
             decimal cumulative = 0;
@@ -235,10 +243,13 @@ public static class ActivityEndpoints
                 targetUserId = userId.Value;
             }
 
-            var reports = await db.GeneratedReports
+            var rawReports = await db.GeneratedReports
                 .Where(r => r.UserId == targetUserId && r.ReportType.StartsWith("Milestone_"))
-                .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
+
+            var reports = rawReports
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList();
 
             var dtos = reports.Select(r =>
             {

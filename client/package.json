@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "node ../tests/e2e/run-all-tests.mjs",
+    "test:blackbox": "node --test ../tests/e2e/blackbox-api.test.mjs",
+    "test:playwright": "node --test ../tests/e2e/playwright-e2e.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
